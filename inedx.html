@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الفروع - بي سانوس</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- jsPDF and html2canvas libraries for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Toastify JS for better notifications -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+        
+        * {
+            font-family: 'Cairo', sans-serif;
+        }
+        
+        .be-sanus-green { background-color: #22c55e; }
+        .be-sanus-green-light { background-color: #dcfce7; }
+        .be-sanus-green-dark { background-color: #15803d; }
+        .text-be-sanus-green { color: #22c55e; }
+        .border-be-sanus-green { border-color: #22c55e; }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .btn {
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .hidden { display: none; }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .sidebar {
+            background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /* Responsive: Hidden by default on small screens, fixed position */
+            position: fixed;
+            top: 0;
+            right: 0; /* For RTL */
+            z-index: 40; /* Above other content */
+            transform: translateX(100%); /* Hidden off-screen to the right */
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .sidebar.open {
+            transform: translateX(0); /* Slide in */
+        }
+
+        /* Show sidebar on medium and larger screens */
+        @media (min-width: 768px) { /* md breakpoint */
+            .sidebar {
+                position: static; /* Not fixed */
+                transform: translateX(0); /* Always visible */
+                width: 64; /* Original width */
+            }
+        }
+        
+        .invoice-item {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 12px 0;
+        }
+        
+        .invoice-item:last-child {
+            border-bottom: none;
+        }
+        
+        .total-section {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        /* Custom styles for improved lists */
+        /* Removed last-child border-bottom as it's handled by invoice-item */
+        #productsList > div,
+        #recentOrdersList > div,
+        #usersList > div,
+        #dailyCookingSummaryList > div { /* Added for cooking summary */
+            border-bottom: 1px solid #e5e7eb; /* Ensure consistent border */
+            margin-bottom: 12px; /* Add some spacing */
+            padding-bottom: 12px; /* Add some padding */
+        }
+        #productsList > div:last-child,
+        #recentOrdersList > div:last-child,
+        #usersList > div:last-child,
+        #dailyCookingSummaryList > div:last-child { /* Added for cooking summary */
+            border-bottom: none; /* Remove border for the very last item */
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        /* Table styling for reports and invoices */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            text-align: right;
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 via-green-500 to-green-600">
+        <div class="card p-8 m-4 w-full max-w-md">
+            <div class="text-center mb-8">
+                <img src="be sanus 1.jpg" alt="شعار شركة بي سانوس - امرأة بشعر مجعد أخضر مع شريط أخضر وكتابة be sanus باللغة الإنجليزية أسفل الصورة" class="mx-auto mb-4 rounded-full">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">be sanus</h1>
+                <p class="text-gray-600">بي سانوس - تسجيل دخول الموظفين فقط</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">اسم المستخدم</label>
+                    <input type="text" id="username" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل اسم المستخدم">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                    <input type="password" id="password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل كلمة المرور">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الفرع</label>
+                    <select id="branch" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <option value="">اختر الفرع</option>
+                        <option value="main">الادارة</option>
+                        <option value="branch1">فرع البغدادية</option>
+                        <option value="branch2">فرع ابحر</option>
+                        <option value="branch3">فرع المحمدية</option>
+                        <option value="branch4">التجارةالاكترونية</option>
+                        <option value="branch5">المطبخ المركزي</option>
+
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">المنصب</label>
+                    <select id="position" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <option value="">اختر المنصب</option>
+                        <option value="manager">مدير </option>
+                        <option value="employee">موظف</option>
+                        <option value="admin">مسؤول نظام</option>
+                        <option value="admin">الادارة</option>
+
+                    </select>
+                </div>
+                
+                <button type="submit" id="loginBtn" class="w-full be-sanus-green text-white py-3 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                    <i class="fas fa-sign-in-alt ml-2"></i>
+                    تسجيل الدخول
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="hidden">
+        <!-- Overlay for mobile sidebar -->
+        <div class="overlay" onclick="toggleSidebar()"></div>
+
+        <div class="flex md:flex-row flex-col"> <!-- Changed flex-col to md:flex-row flex-col -->
+            <!-- Sidebar -->
+            <div id="sidebar" class="sidebar w-64 md:w-64 text-white flex-shrink-0"> <!-- Added id="sidebar" and flex-shrink-0 -->
+                <div class="p-6 border-b border-green-400">
+                    <img src="be sanus 1.jpg" alt="شعار بي سانوس صغير - نسخة مصغرة من شعار الشركة باللون الأبيض على خلفية خضراء" class="mx-auto mb-3 rounded-full">
+                    <h2 class="text-xl font-bold text-center">بي سانوس</h2>
+                    <p id="userInfo" class="text-center text-green-200 mt-2"></p>
+                </div>
+                
+                <nav class="p-6 flex flex-col h-full">
+                    <ul class="space-y-4 flex-grow">
+                        <li>
+                            <button onclick="showSection('products', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                                <i class="fas fa-box ml-3"></i>
+                                إدارة الأصناف
+                            </button>
+                        </li>
+                        <li>
+                            <button onclick="showSection('orders', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                                <i class="fas fa-shopping-cart ml-3"></i>
+                                الطلبات
+                            </button>
+                        </li>
+                        <li>
+                            <button onclick="showSection('invoices', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                                <i class="fas fa-file-invoice ml-3"></i>
+                                الفواتير
+                            </button>
+                        </li>
+                        <li>
+                            <button onclick="showSection('reports', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                                <i class="fas fa-chart-bar ml-3"></i>
+                                التقارير
+                            </button>
+                        </li>
+                        <li id="usersManagementNavItem" class="hidden">
+                            <button onclick="showSection('users', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                                <i class="fas fa-users-cog ml-3"></i>
+                                إدارة المستخدمين
+                            </button>
+                        </li>
+                        <li id="cookingQuantitiesNavItem" class="hidden">
+                            <button onclick="showSection('cookingQuantities', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                                <i class="fas fa-utensils ml-3"></i>
+                                كميات الطبخ
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="mt-auto pt-6">
+                        <button onclick="logout()" class="w-full bg-red-700 hover:bg-red-800 text-white py-3 px-4 rounded-lg btn">
+                            <i class="fas fa-sign-out-alt ml-2"></i>
+                            تسجيل خروج
+                        </button>
+                    </div>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="flex-1 p-4 md:p-6"> <!-- Adjusted padding for mobile -->
+                <!-- Header -->
+                <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-4 md:mb-6 flex justify-between items-center"> <!-- Adjusted padding and added flex for mobile menu button -->
+                    <h1 id="pageTitle" class="text-xl md:text-2xl font-bold text-gray-800">لوحة التحكم الرئيسية</h1>
+                    <button class="md:hidden text-gray-600 text-2xl" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="text-sm text-gray-600 hidden md:block"> <!-- Hide on mobile, show on md+ -->
+                        <i class="fas fa-calendar-alt ml-2"></i>
+                        <span id="currentDate"></span>
+                    </div>
+                </div>
+
+                <!-- Products Section -->
+                <div id="productsSection" class="section">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Add Product -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-plus-circle text-be-sanus-green ml-2"></i>
+                                إضافة صنف جديد
+                            </h3>
+                            
+                            <form id="productForm" class="space-y-4">
+                                <input type="hidden" id="productId">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">اسم الصنف</label>
+                                    <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="مثال: ساندويش دجاج">
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4"> <!-- Changed to 1 column on mobile -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">وحدة القياس</label>
+                                        <select id="productUnit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                            <option value="gram">بالغرام</option>
+                                            <option value="piece">بالحبة</option>
+                                            <option value="kg">بالكيلو</option>
+                                            <option value="liter">باللتر</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">الكمية المرجعية</label>
+                                        <input type="number" id="productBaseAmount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="100" value="100">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">التكلفة (ريال سعودي)</label>
+                                    <input type="number" id="productCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="23.00">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">الوصف</label>
+                                    <textarea id="productDescription" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="وصف مختصر للصنف"></textarea>
+                                </div>
+                                
+                                <button type="submit" id="saveProductBtn" class="w-full be-sanus-green text-white py-2 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                                    <i class="fas fa-save ml-2"></i>
+                                    حفظ الصنف
+                                </button>
+                                <button type="button" id="cancelEditBtn" onclick="cancelEditProduct()" class="w-full bg-gray-400 text-white py-2 px-4 rounded-lg btn hover:bg-gray-50 hidden">
+                                    <i class="fas fa-times ml-2"></i>
+                                    إلغاء التعديل
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Products List -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-list text-be-sanus-green ml-2"></i>
+                                قائمة الأصناف
+                            </h3>
+                            
+                            <div class="max-h-96 overflow-y-auto">
+                                <div id="productsList" class="space-y-3">
+                                    <!-- Products will be displayed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Orders Section -->
+                <div id="ordersSection" class="section hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Create Order -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-shopping-cart text-be-sanus-green ml-2"></i>
+                                طلب جديد
+                            </h3>
+                            
+                            <form id="orderForm" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">اختر الصنف</label>
+                                    <select id="orderProduct" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                        <option value="">-- اختر صنف --</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4"> <!-- Changed to 1 column on mobile -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">الكمية</label>
+                                        <input type="number" id="orderQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="1" min="1">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">التكلفة الإجمالية</label>
+                                        <input type="text" id="orderTotal" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly placeholder="0.00 ريال">
+                                    </div>
+                                </div>
+                                
+                                <button type="button" onclick="addToOrder()" class="w-full be-sanus-green text-white py-2 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                                    <i class="fas fa-plus ml-2"></i>
+                                    إضافة للطلب
+                                </button>
+                            </form>
+                            
+                            <!-- Order Items -->
+                            <div class="mt-6">
+                                <h4 class="font-semibold text-gray-800 mb-3">عناصر الطلب الحالي:</h4>
+                                <div id="currentOrderItems" class="space-y-2 max-h-48 overflow-y-auto">
+                                    <!-- Order items will be displayed here -->
+                                </div>
+                                
+                                <div class="total-section mt-4">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-bold text-lg">المجموع الإجمالي:</span>
+                                        <span id="orderGrandTotal" class="font-bold text-xl text-be-sanus-green">0.00 ريال</span>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="submitOrder()" id="submitOrderBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg btn mt-4">
+                                    <i class="fas fa-check ml-2"></i>
+                                    تأكيد الطلب
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Orders -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-history text-be-sanus-green ml-2"></i>
+                                الطلبات الأخيرة
+                            </h3>
+                            
+                            <div class="max-h-96 overflow-y-auto">
+                                <div id="recentOrdersList" class="space-y-3">
+                                    <!-- Recent orders will be displayed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoices Section -->
+                <div id="invoicesSection" class="section hidden">
+                    <div class="card p-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6"> <!-- Adjusted for mobile layout -->
+                            <h3 class="text-xl font-bold text-gray-800 mb-4 md:mb-0"> <!-- Adjusted margin -->
+                                <i class="fas fa-file-invoice text-be-sanus-green ml-2"></i>
+                                فواتير الفروع
+                            </h3>
+                            <button onclick="downloadInvoicePdf()" id="downloadInvoicePdfBtn" class="be-sanus-green text-white px-4 py-2 rounded-lg btn hover:be-sanus-green-dark w-full md:w-auto"> <!-- Full width on mobile -->
+                                <i class="fas fa-file-pdf ml-2"></i>
+                                تحميل الفاتورة
+                            </button>
+                        </div>
+                        
+                        <!-- Invoice Filters -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">الفرع</label>
+                                <select id="invoiceBranch" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" onchange="generateInvoice()">
+                                    <option value="">جميع الفروع</option>
+                                    <option value="branch1">فرع البغدادية</option>
+                                    <option value="branch2">فرع ابحر</option>
+                                    <option value="branch3">فرع المحمدية</option>
+                                    <option value="branch4">التجارةالاكترونية</option>
+                                    <option value="main">المطبخ المركزي</option> <!-- Changed branch5 to main for consistency -->
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">من تاريخ</label>
+                                <input type="date" id="invoiceDateFrom" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" onchange="generateInvoice()">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ</label>
+                                <input type="date" id="invoiceDateTo" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" onchange="generateInvoice()">
+                            </div>
+                        </div>
+                        
+                        <!-- Invoice Display -->
+                        <div id="invoiceDisplay" class="border border-gray-200 rounded-lg p-6 bg-white">
+                            <!-- Invoice content will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Section -->
+                <div id="reportsSection" class="section">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Sales Report -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">
+                                <i class="fas fa-chart-line text-be-sanus-green ml-2"></i>
+                                تقرير المبيعات
+                            </h3>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-be-sanus-green mb-2" id="totalSales">0.00</div>
+                                <div class="text-sm text-gray-600">إجمالي المبيعات (ريال)</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Orders Count -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold text-blue-500 mb-4">
+                                <i class="fas fa-shopping-bag text-blue-500 ml-2"></i>
+                                عدد الطلبات
+                            </h3>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-blue-500 mb-2" id="totalOrders">0</div>
+                                <div class="text-sm text-gray-600">إجمالي الطلبات</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Active Products -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">
+                                <i class="fas fa-box text-orange-500 ml-2"></i>
+                                الأصناف النشطة
+                            </h3>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-orange-500 mb-2" id="totalProducts">0</div>
+                                <div class="text-sm text-gray-600">عدد الأصناف</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Detailed Reports -->
+                    <div class="card p-6 mt-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4"> <!-- Adjusted for mobile layout -->
+                            <h3 class="text-xl font-bold text-gray-800 mb-4 md:mb-0">التقارير التفصيلية</h3> <!-- Adjusted margin -->
+                            <button onclick="downloadReportPdf()" id="downloadReportPdfBtn" class="be-sanus-green text-white px-4 py-2 rounded-lg btn hover:be-sanus-green-dark text-sm w-full md:w-auto"> <!-- Full width on mobile -->
+                                <i class="fas fa-file-pdf ml-2"></i>
+                                تحميل PDF
+                            </button>
+                        </div>
+
+                        <!-- Report Filters (NEW) -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">من تاريخ</label>
+                                <input type="date" id="reportDateFrom" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" onchange="updateReports()">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ</label>
+                                <input type="date" id="reportDateTo" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" onchange="updateReports()">
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-right">الصنف</th>
+                                        <th class="px-4 py-3 text-right">الكمية المباعة (إجمالي)</th>
+                                        <th class="px-4 py-3 text-right">إجمالي المبيعات</th>
+                                        <th class="px-4 py-3 text-right">مجموع الطبخ اليومي</th>
+                                        <th class="px-4 py-3 text-right">آخر طلب</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportTableBody">
+                                    <!-- Report data will be displayed here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Section (NEW) -->
+                <div id="usersSection" class="section hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Add User -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-user-plus text-be-sanus-green ml-2"></i>
+                                إضافة مستخدم جديد
+                            </h3>
+                            <form id="userForm" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">اسم المستخدم</label>
+                                    <input type="text" id="newUsername" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل اسم المستخدم">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                                    <input type="password" id="newUserPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل كلمة المرور">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">الفرع</label>
+                                    <select id="newUserBranch" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                        <option value="">اختر الفرع</option>
+                                        <option value="main">الادارة</option>
+                                        <option value="branch1">فرع البغدادية</option>
+                                        <option value="branch2">فرع ابحر</option>
+                                        <option value="branch3">فرع المحمدية</option>
+                                        <option value="branch4">التجارةالاكترونية</option>
+                                        <option value="branch5">المطبخ المركزي</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">المنصب</label>
+                                    <select id="newUserPosition" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                        <option value="">اختر المنصب</option>
+                                        <option value="manager">مدير </option>
+                                        <option value="employee">موظف</option>
+                                        <option value="admin">مسؤول نظام</option>
+                                        <option value="admin">الادارة</option>
+
+                                    </select>
+                                </div>
+                                <button type="submit" onclick="addUser(event)" id="addUserBtn" class="w-full be-sanus-green text-white py-2 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                                    <i class="fas fa-user-plus ml-2"></i>
+                                    إضافة مستخدم
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Users List -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-users text-be-sanus-green ml-2"></i>
+                                قائمة المستخدمين
+                            </h3>
+                            <div class="max-h-96 overflow-y-auto">
+                                <div id="usersList" class="space-y-3">
+                                    <!-- Users will be displayed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cooking Quantities Section (NEW) -->
+                <div id="cookingQuantitiesSection" class="section hidden">
+                    <div class="card p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-utensils text-be-sanus-green ml-2"></i>
+                            كميات الطبخ اليومية
+                        </h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <!-- Add Daily Entry Form -->
+                            <div class="card p-6">
+                                <h4 class="text-lg font-bold text-gray-800 mb-4">إضافة إدخال يومي</h4>
+                                <form id="dailyCookingForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">التاريخ</label>
+                                        <input type="date" id="cookingDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">اختر الصنف</label>
+                                        <select id="cookingProduct" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required>
+                                            <option value="">-- اختر صنف --</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">كمية الطبخ</label>
+                                        <input type="number" id="cookedQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل الكمية المطبوخة" min="0" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">كمية التوزيع</label>
+                                        <input type="number" id="distributedQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل كمية التوزيع" min="0" required>
+                                    </div>
+                                    <button type="submit" id="addCookingEntryBtn" class="w-full be-sanus-green text-white py-2 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                                        <i class="fas fa-plus ml-2"></i>
+                                        إضافة إدخال
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Daily Cooking Summary -->
+                            <div class="card p-6">
+                                <h4 class="text-lg font-bold text-gray-800 mb-4">ملخص الطبخ اليومي</h4>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">عرض لـتاريخ:</label>
+                                    <input type="date" id="summaryDateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" onchange="displayDailyCookingSummary()">
+                                </div>
+                                <div id="dailyCookingSummaryList" class="max-h-96 overflow-y-auto space-y-3">
+                                    <!-- Daily cooking summary will be displayed here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- All Cooking Entries Table -->
+                        <div class="card p-6 mt-6">
+                            <h4 class="text-lg font-bold text-gray-800 mb-4">جميع إدخالات الطبخ</h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-right">التاريخ</th>
+                                            <th class="px-4 py-3 text-right">الصنف</th>
+                                            <th class="px-4 py-3 text-right">كمية الطبخ</th>
+                                            <th class="px-4 py-3 text-right">كمية التوزيع</th>
+                                            <th class="px-4 py-3 text-right">المتبقي</th>
+                                            <th class="px-4 py-3 text-right">الموظف</th>
+                                            <th class="px-4 py-3 text-right">الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="allCookingEntriesTableBody">
+                                        <!-- All cooking entries will be displayed here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="orderDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg mx-4 relative">
+            <button onclick="closeOrderDetailsModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">تفاصيل الطلب</h2>
+            <div id="orderDetailsContent" class="max-h-96 overflow-y-auto pb-4">
+                <!-- Order details will be loaded here -->
+            </div>
+            <div class="total-section mt-4">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-lg">المجموع الإجمالي:</span>
+                    <span id="modalOrderGrandTotal" class="font-bold text-xl text-be-sanus-green">0.00 ريال</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Details Modal (NEW) -->
+    <div id="invoiceDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg mx-4 relative">
+            <button onclick="closeInvoiceDetailsModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">تفاصيل الفاتورة</h2>
+            <div id="invoiceDetailsContent" class="max-h-96 overflow-y-auto pb-4">
+                <!-- Invoice details will be loaded here -->
+            </div>
+            <div class="total-section mt-4">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-lg">المجموع الإجمالي:</span>
+                    <span id="modalInvoiceGrandTotal" class="font-bold text-xl text-be-sanus-green">0.00 ريال</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let products = JSON.parse(localStorage.getItem('products')) || [];
+        let orders = JSON.parse(localStorage.getItem('orders')) || [];
+        // Make authorizedUsers mutable and load from localStorage
+        let authorizedUsers = JSON.parse(localStorage.getItem('authorizedUsers')) || [
+            { username: 'عبدالله الجدعاني', password: '1111', branch: 'main', position: 'admin' },
+            { username: 'شيف وائل', password: '1212', branch: 'main', position: 'manager' },
+            { username: 'برهان', password: '1212', branch: 'main', position: 'employee' },
+            { username: 'سماح نيب', password: '1212', branch: 'branch4', position: 'manager' },
+            { username: 'employee2', password: 'employeepassword', branch: 'branch2', position: 'employee' },
+            { username: 'manager3', password: 'managerpassword', branch: 'branch3', position: 'manager' },
+            { username: 'employee3', password: 'employeepassword', branch: 'branch3', position: 'employee' },
+            { username: 'manager4', password: 'managerpassword', branch: 'branch4', position: 'manager' },
+            { username: 'employee4', password: 'employeepassword', branch: 'branch4', position: 'employee' }
+        ];
+        let currentOrder = [];
+        let cookingEntries = JSON.parse(localStorage.getItem('cookingEntries')) || []; // NEW: Cooking entries
+
+        // Utility function for Toast notifications
+        function showToast(message, type = 'success') {
+            let backgroundColor = '#22c55e'; // be-sanus-green
+            if (type === 'error') {
+                backgroundColor = '#ef4444'; // red-500
+            } else if (type === 'info') {
+                backgroundColor = '#3b82f6'; // blue-500
+            }
+
+            Toastify({
+                text: message,
+                duration: 3000,
+                close: true,
+                gravity: "top", // `top` or `bottom`
+                position: "center", // `left`, `center` or `right`
+                stopOnFocus: true, // Prevents dismissing on hover
+                style: {
+                    background: backgroundColor,
+                    borderRadius: "8px",
+                    fontFamily: "'Cairo', sans-serif",
+                    textAlign: "center"
+                },
+                onClick: function(){} // Callback after click
+            }).showToast();
+        }
+
+        // Utility function to show/hide loading spinner on buttons
+        function toggleLoading(buttonId, isLoading, originalText = '', spinnerClass = 'fas fa-spinner fa-spin ml-2') {
+            const button = document.getElementById(buttonId);
+            if (!button) return;
+
+            if (isLoading) {
+                button.dataset.originalText = button.innerHTML; // Store original content
+                button.innerHTML = `<i class="${spinnerClass}"></i> جاري التحميل...`;
+                button.disabled = true;
+            } else {
+                button.innerHTML = button.dataset.originalText || originalText; // Restore original content
+                button.disabled = false;
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCurrentDate();
+            loadInitialData();
+            // Save initial authorizedUsers if not already in localStorage
+            if (!localStorage.getItem('authorizedUsers')) {
+                localStorage.setItem('authorizedUsers', JSON.stringify(authorizedUsers));
+            }
+            
+            // Auto-calculate order total when quantity changes
+            document.getElementById('orderQuantity').addEventListener('input', calculateOrderTotal);
+            document.getElementById('orderProduct').addEventListener('change', calculateOrderTotal);
+
+            // Set default dates for reports and invoices
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+            document.getElementById('invoiceDateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
+            document.getElementById('invoiceDateTo').value = today.toISOString().split('T')[0];
+            document.getElementById('reportDateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
+            document.getElementById('reportDateTo').value = today.toISOString().split('T')[0];
+        });
+        
+        // Update current date
+        function updateCurrentDate() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('ar-SA', options);
+        }
+        
+        // Load initial demo data
+        function loadInitialData() {
+            if (products.length === 0) {
+                products = [
+                    {
+                        id: 1,
+                        name: "ساندويش دجاج",
+                        unit: "piece",
+                        baseAmount: 1,
+                        cost: 15.00,
+                        description: "ساندويش دجاج مشوي مع الخضروات"
+                    },
+                    {
+                        id: 2,
+                        name: "سلطة خضراء",
+                        unit: "gram",
+                        baseAmount: 100,
+                        cost: 12.00,
+                        description: "سلطة خضروات طازجة مع صوص خاص"
+                    },
+                    {
+                        id: 3,
+                        name: "عصير طبيعي",
+                        unit: "liter",
+                        baseAmount: 1,
+                        cost: 8.00,
+                        description: "عصير فواكه طبيعي مشكل"
+                    }
+                ];
+                localStorage.setItem('products', JSON.stringify(products));
+            }
+        }
+        
+        // Login functionality
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            toggleLoading('loginBtn', true); // Show loading spinner
+
+            const usernameInput = document.getElementById('username').value;
+            const passwordInput = document.getElementById('password').value;
+            const branchInput = document.getElementById('branch').value;
+            const positionInput = document.getElementById('position').value;
+            
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Find the user in the authorizedUsers list
+            const foundUser = authorizedUsers.find(user => 
+                user.username === usernameInput && 
+                user.password === passwordInput &&
+                user.branch === branchInput &&
+                user.position === positionInput
+            );
+
+            if (foundUser) {
+                currentUser = {
+                    username: foundUser.username,
+                    branch: foundUser.branch,
+                    position: foundUser.position,
+                    loginTime: new Date()
+                };
+                
+                document.getElementById('userInfo').textContent = `${foundUser.username} - ${getBranchName(foundUser.branch)} - ${getPositionName(foundUser.position)}`;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+
+                // Show/hide users management based on position
+                if (currentUser.position === 'admin') {
+                    document.getElementById('usersManagementNavItem').classList.remove('hidden');
+                } else {
+                    document.getElementById('usersManagementNavItem').classList.add('hidden');
+                }
+
+                // Show/hide cooking quantities management based on position
+                if (currentUser.position === 'manager' || currentUser.position === 'employee' || currentUser.position === 'admin') {
+                    document.getElementById('cookingQuantitiesNavItem').classList.remove('hidden');
+                } else {
+                    document.getElementById('cookingQuantitiesNavItem').classList.add('hidden');
+                }
+                
+                showSection('products', null); // Pass null for event on initial load
+                updateReports(); // Initial report update
+                showToast('تم تسجيل الدخول بنجاح!', 'success');
+            } else {
+                showToast('اسم المستخدم أو كلمة المرور أو الفرع أو المنصب غير صحيح. يرجى التحقق من بيانات الاعتماد الخاصة بك.', 'error');
+            }
+            toggleLoading('loginBtn', false, '<i class="fas fa-sign-in-alt ml-2"></i> تسجيل الدخول'); // Hide loading spinner
+        });
+        
+        // Get branch name in Arabic
+        function getBranchName(branchCode) {
+            const branches = {
+                'main': 'الادارة',
+                'branch1': 'فرع البغدادية',
+                'branch2': 'فرع ابحر',
+                'branch3': 'فرع المحمدية',
+                'branch4': 'التجارة الاكترونية',
+                'branch5': 'المطبخ المركزي',
+
+            };
+            return branches[branchCode] || branchCode;
+        }
+
+        // Get position name in Arabic
+        function getPositionName(positionCode) {
+            const positions = {
+                'manager': 'مدير',
+                'employee': 'موظف',
+                'admin': 'مسؤول نظام'
+            };
+            return positions[positionCode] || positionCode;
+        }
+        
+        // Show section
+        function showSection(sectionName, event) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + 'Section').classList.remove('hidden');
+            
+            // Update page title
+            const titles = {
+                'products': 'إدارة الأصناف',
+                'orders': 'إدارة الطلبات',
+                'invoices': 'الفواتير',
+                'reports': 'التقارير',
+                'users': 'إدارة المستخدمين', // New title
+                'cookingQuantities': 'كميات الطبخ' // NEW: Cooking Quantities title
+            };
+            document.getElementById('pageTitle').textContent = titles[sectionName];
+            
+            // Update active nav button
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-green-600');
+            });
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('bg-green-600');
+            } else {
+                // Fallback for initial load or direct calls without event
+                const defaultBtn = document.querySelector(`.nav-btn[onclick*="${sectionName}"]`);
+                if (defaultBtn) {
+                    defaultBtn.classList.add('bg-green-600');
+                }
+            }
+            
+            // Load section specific data
+            if (sectionName === 'products') {
+                displayProducts();
+            } else if (sectionName === 'orders') {
+                displayOrders();
+                updateOrderProductSelect();
+            } else if (sectionName === 'invoices') {
+                displayInvoices();
+            } else if (sectionName === 'reports') {
+                updateReports();
+            } else if (sectionName === 'users') { // New section logic
+                displayUsers();
+            } else if (sectionName === 'cookingQuantities') { // NEW: Cooking Quantities logic
+                updateCookingProductSelect();
+                displayAllCookingEntries();
+                displayDailyCookingSummary();
+                // Set default date for cookingDate input
+                document.getElementById('cookingDate').valueAsDate = new Date();
+                document.getElementById('summaryDateFilter').valueAsDate = new Date();
+            }
+        }
+        
+        // Product management
+        document.getElementById('productForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Only allow admin to submit the form
+            if (currentUser.position !== 'admin') {
+                showToast('ليس لديك الصلاحية لإضافة أو تعديل الأصناف.', 'error');
+                return;
+            }
+
+            const productId = document.getElementById('productId').value; // Get product ID
+            const productName = document.getElementById('productName').value;
+            const productUnit = document.getElementById('productUnit').value;
+            const productBaseAmount = parseFloat(document.getElementById('productBaseAmount').value);
+            const productCost = parseFloat(document.getElementById('productCost').value);
+            const productDescription = document.getElementById('productDescription').value;
+            
+            if (!productName || isNaN(productBaseAmount) || isNaN(productCost) || productBaseAmount <= 0 || productCost <= 0) {
+                showToast('يرجى ملء جميع حقول الصنف بشكل صحيح (الكمية المرجعية والتكلفة يجب أن تكون أرقام موجبة).', 'error');
+                return;
+            }
+
+            toggleLoading('saveProductBtn', true); // Show loading spinner
+            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+        
+            if (productId) { // Editing existing product
+                const productIndex = products.findIndex(p => p.id == productId);
+                if (productIndex !== -1) {
+                    products[productIndex] = {
+                        ...products[productIndex], // Keep existing properties
+                        name: productName,
+                        unit: productUnit,
+                        baseAmount: productBaseAmount,
+                        cost: productCost,
+                        description: productDescription
+                    };
+                    showToast('تم تحديث الصنف بنجاح', 'success');
+                }
+            } else { // Adding new product
+                const product = {
+                    id: Date.now(),
+                    name: productName,
+                    unit: productUnit,
+                    baseAmount: productBaseAmount,
+                    cost: productCost,
+                    description: productDescription
+                };
+                products.push(product);
+                showToast('تم إضافة الصنف بنجاح', 'success');
+            }
+            
+            localStorage.setItem('products', JSON.stringify(products));
+            
+            this.reset();
+            document.getElementById('productBaseAmount').value = '100';
+            document.getElementById('productId').value = ''; // Clear hidden ID
+            toggleLoading('saveProductBtn', false, '<i class="fas fa-save ml-2"></i> حفظ الصنف'); // Reset button text
+            document.getElementById('cancelEditBtn').classList.add('hidden'); // Hide cancel button
+            
+            displayProducts();
+            updateOrderProductSelect();
+            updateReports();
+            updateCookingProductSelect(); // NEW: Update cooking product select after product changes
+        });
+        
+        // Display products
+        function displayProducts() {
+            const productsList = document.getElementById('productsList');
+            productsList.innerHTML = '';
+            
+            if (products.length === 0) {
+                productsList.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد أصناف مضافة</p>';
+                return;
+            }
+            
+            const isAdmin = currentUser && currentUser.position === 'admin'; // Check if current user is admin
+
+            products.forEach(product => {
+                const unitName = getUnitName(product.unit);
+                const productDiv = document.createElement('div');
+                productDiv.className = 'bg-gray-50 p-4 rounded-lg'; 
+                productDiv.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-gray-800">${product.name}</h4>
+                        <div class="flex space-x-reverse space-x-2">
+                            ${isAdmin ? `
+                                <button onclick="editProduct(${product.id})" class="text-blue-500 hover:text-blue-700">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteProduct(${product.id})" class="text-red-500 hover:text-red-700">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">${product.description}</p>
+                    <div class="text-sm">
+                        <span class="text-be-sanus-green font-semibold">${product.cost.toFixed(2)} ريال</span>
+                        <span class="text-gray-500">/ ${product.baseAmount} ${unitName}</span>
+                    </div>
+                `;
+                productsList.appendChild(productDiv);
+            });
+
+            // Additionally, disable the product form inputs and buttons if not admin
+            const productForm = document.getElementById('productForm');
+            const formInputs = productForm.querySelectorAll('input, select, textarea, button[type="submit"]');
+            formInputs.forEach(input => {
+                if (input.id !== 'cancelEditBtn') { // Keep cancel button enabled for admin to clear form
+                    input.disabled = !isAdmin;
+                }
+            });
+            // Hide the add/save product button if not admin
+            document.getElementById('saveProductBtn').classList.toggle('hidden', !isAdmin);
+            // Ensure cancel edit button is hidden if not admin
+            if (!isAdmin) {
+                document.getElementById('cancelEditBtn').classList.add('hidden');
+            }
+        }
+        
+        // Get unit name in Arabic
+        function getUnitName(unit) {
+            const units = {
+                'gram': 'غرام',
+                'piece': 'حبة',
+                'kg': 'كيلو',
+                'liter': 'لتر'
+            };
+            return units[unit] || unit;
+        }
+        
+        // Edit product
+        function editProduct(productId) {
+            // Only allow admin to edit
+            if (currentUser.position !== 'admin') {
+                showToast('ليس لديك الصلاحية لتعديل الأصناف.', 'error');
+                return;
+            }
+
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                document.getElementById('productId').value = product.id;
+                document.getElementById('productName').value = product.name;
+                document.getElementById('productUnit').value = product.unit;
+                document.getElementById('productBaseAmount').value = product.baseAmount;
+                document.getElementById('productCost').value = product.cost;
+                document.getElementById('productDescription').value = product.description;
+                
+                document.getElementById('saveProductBtn').innerHTML = '<i class="fas fa-sync-alt ml-2"></i> تحديث الصنف';
+                document.getElementById('cancelEditBtn').classList.remove('hidden');
+                
+                // Scroll to the form
+                document.getElementById('productsSection').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Cancel edit product
+        function cancelEditProduct() {
+            document.getElementById('productForm').reset();
+            document.getElementById('productBaseAmount').value = '100';
+            document.getElementById('productId').value = '';
+            document.getElementById('saveProductBtn').innerHTML = '<i class="fas fa-save ml-2"></i> حفظ الصنف';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            showToast('تم إلغاء التعديل.', 'info');
+        }
+
+        // Delete product
+        function deleteProduct(productId) {
+            // Only allow admin to delete
+            if (currentUser.position !== 'admin') {
+                showToast('ليس لديك الصلاحية لحذف الأصناف.', 'error');
+                return;
+            }
+
+            if (confirm('هل أنت متأكد من حذف هذا الصنف؟')) {
+                products = products.filter(p => p.id !== productId);
+                localStorage.setItem('products', JSON.stringify(products));
+                displayProducts();
+                updateOrderProductSelect();
+                updateReports();
+                updateCookingProductSelect(); // NEW: Update cooking product select after product changes
+                showToast('تم حذف الصنف بنجاح.', 'success');
+            }
+        }
+        
+        // Update order product select
+        function updateOrderProductSelect() {
+            const select = document.getElementById('orderProduct');
+            select.innerHTML = '<option value="">-- اختر صنف --</option>';
+            
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = `${product.name} (${product.cost.toFixed(2)} ريال/${product.baseAmount} ${getUnitName(product.unit)})`;
+                select.appendChild(option);
+            });
+        }
+        
+        // Calculate order total
+        function calculateOrderTotal() {
+            const productId = document.getElementById('orderProduct').value;
+            const quantity = parseFloat(document.getElementById('orderQuantity').value) || 0;
+            
+            if (productId && quantity > 0) {
+                const product = products.find(p => p.id == productId);
+                if (product) {
+                    const total = (product.cost / product.baseAmount) * quantity;
+                    document.getElementById('orderTotal').value = total.toFixed(2) + ' ريال';
+                }
+            } else {
+                document.getElementById('orderTotal').value = '0.00 ريال';
+            }
+        }
+        
+        // Add to order
+        function addToOrder() {
+            const productId = document.getElementById('orderProduct').value;
+            const quantity = parseFloat(document.getElementById('orderQuantity').value);
+            
+            if (!productId || !quantity || quantity <= 0) {
+                showToast('يرجى اختيار صنف وإدخال كمية صحيحة', 'error');
+                return;
+            }
+            
+            const product = products.find(p => p.id == productId);
+            if (!product) {
+                showToast('الصنف المحدد غير موجود', 'error');
+                return;
+            }
+            
+            const total = (product.cost / product.baseAmount) * quantity;
+            
+            const orderItem = {
+                productId: product.id,
+                productName: product.name,
+                unit: product.unit,
+                quantity: quantity,
+                unitCost: product.cost / product.baseAmount,
+                total: total
+            };
+            
+            // Check if item already exists in current order
+            const existingItemIndex = currentOrder.findIndex(item => item.productId == productId);
+            if (existingItemIndex >= 0) {
+                currentOrder[existingItemIndex].quantity += quantity;
+                currentOrder[existingItemIndex].total += total;
+            } else {
+                currentOrder.push(orderItem);
+            }
+            
+            // Reset form
+            document.getElementById('orderProduct').value = '';
+            document.getElementById('orderQuantity').value = '';
+            document.getElementById('orderTotal').value = '0.00 ريال';
+            
+            displayCurrentOrder();
+            showToast('تمت إضافة الصنف إلى الطلب.', 'success');
+        }
+        
+        // Display current order
+        function displayCurrentOrder() {
+            const container = document.getElementById('currentOrderItems');
+            const grandTotalElement = document.getElementById('orderGrandTotal');
+            
+            container.innerHTML = '';
+            let grandTotal = 0;
+            
+            if (currentOrder.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد عناصر في الطلب</p>';
+                grandTotalElement.textContent = '0.00 ريال';
+                return;
+            }
+            
+            currentOrder.forEach((item, index) => {
+                grandTotal += item.total;
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'invoice-item flex justify-between items-center';
+                itemDiv.innerHTML = `
+                    <div>
+                        <div class="font-medium">${item.productName}</div>
+                        <div class="text-sm text-gray-600">${item.quantity} ${getUnitName(item.unit)} × ${item.unitCost.toFixed(2)} ريال</div>
+                    </div>
+                    <div class="flex items-center space-x-reverse space-x-2">
+                        <span class="font-medium">${item.total.toFixed(2)} ريال</span>
+                        <button onclick="removeFromOrder(${index})" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+            
+            grandTotalElement.textContent = grandTotal.toFixed(2) + ' ريال';
+        }
+        
+        // Remove from order
+        function removeFromOrder(index) {
+            currentOrder.splice(index, 1);
+            displayCurrentOrder();
+            showToast('تم حذف الصنف من الطلب.', 'info');
+        }
+        
+        // Submit order
+        async function submitOrder() {
+            if (currentOrder.length === 0) {
+                showToast('يرجى إضافة عناصر للطلب', 'error');
+                return;
+            }
+            
+            toggleLoading('submitOrderBtn', true); // Show loading spinner
+            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+
+            const order = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                branch: currentUser.branch,
+                user: currentUser.username,
+                position: currentUser.position, // Include position
+                items: [...currentOrder],
+                total: currentOrder.reduce((sum, item) => sum + item.total, 0)
+            };
+            
+            orders.push(order);
+            localStorage.setItem('orders', JSON.stringify(orders));
+            
+            currentOrder = [];
+            displayCurrentOrder();
+            displayOrders();
+            updateReports();
+            
+            showToast('تم تأكيد الطلب بنجاح', 'success');
+            toggleLoading('submitOrderBtn', false, '<i class="fas fa-check ml-2"></i> تأكيد الطلب'); // Hide loading spinner
+        }
+        
+        // Display orders
+        function displayOrders() {
+            const container = document.getElementById('recentOrdersList');
+            container.innerHTML = '';
+            
+            // Display all orders, not just last 10, but sorted by date descending
+            const sortedOrders = [...orders].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            if (sortedOrders.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد طلبات</p>';
+                return;
+            }
+            
+            sortedOrders.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'bg-gray-50 p-4 rounded-lg'; 
+                orderDiv.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="font-bold">طلب #${order.id}</div>
+                            <div class="text-sm text-gray-600">${getBranchName(order.branch)} - <span class="font-semibold">${order.user}</span> (${getPositionName(order.position)})</div>
+                        </div>
+                        <div class="text-left">
+                            <div class="font-semibold text-be-sanus-green">${order.total.toFixed(2)} ريال</div>
+                            <div class="text-sm text-gray-600">${new Date(order.date).toLocaleDateString('ar-SA')}</div>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        ${order.items.length} عنصر
+                    </div>
+                    <button onclick="viewOrderDetails(${order.id})" class="text-blue-500 hover:text-blue-700 text-sm mt-2">
+                        <i class="fas fa-info-circle ml-1"></i>
+                        عرض التفاصيل
+                    </button>
+                `;
+                container.appendChild(orderDiv);
+            });
+        }
+
+        // View order details in modal
+        function viewOrderDetails(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) {
+                showToast('الطلب غير موجود.', 'error');
+                return;
+            }
+
+            const contentDiv = document.getElementById('orderDetailsContent');
+            contentDiv.innerHTML = `
+                <p class="text-gray-700 mb-2"><span class="font-semibold">رقم الطلب:</span> #${order.id}</p>
+                <p class="text-gray-700 mb-2"><span class="font-semibold">الفرع:</span> ${getBranchName(order.branch)}</p>
+                <p class="text-gray-700 mb-2"><span class="font-semibold">الموظف:</span> ${order.user} (${getPositionName(order.position)})</p>
+                <p class="text-gray-700 mb-4"><span class="font-semibold">التاريخ:</span> ${new Date(order.date).toLocaleString('ar-SA')}</p>
+                
+                <h4 class="font-semibold text-gray-800 mb-3">الأصناف:</h4>
+                <div class="border rounded-lg p-3 mb-4">
+                    ${order.items.map(item => `
+                        <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+                            <div>
+                                <div class="font-medium">${item.productName}</div>
+                                <div class="text-sm text-gray-600">${item.quantity} ${getUnitName(item.unit)} × ${item.unitCost.toFixed(2)} ريال</div>
+                            </div>
+                            <span class="font-medium">${item.total.toFixed(2)} ريال</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('modalOrderGrandTotal').textContent = order.total.toFixed(2) + ' ريال';
+            document.getElementById('orderDetailsModal').classList.remove('hidden');
+        }
+
+        // Close order details modal
+        function closeOrderDetailsModal() {
+            document.getElementById('orderDetailsModal').classList.add('hidden');
+        }
+        
+        // Generate invoice
+        function generateInvoice() {
+            const branch = document.getElementById('invoiceBranch').value;
+            const dateFrom = document.getElementById('invoiceDateFrom').value;
+            const dateTo = document.getElementById('invoiceDateTo').value;
+            
+            let filteredOrders = orders;
+            
+            // Filter by branch
+            if (branch) {
+                filteredOrders = filteredOrders.filter(order => order.branch === branch);
+            }
+            
+            // Filter by date
+            if (dateFrom) {
+                const fromDate = new Date(dateFrom);
+                fromDate.setHours(0, 0, 0, 0); // Set to start of day
+                filteredOrders = filteredOrders.filter(order => 
+                    new Date(order.date) >= fromDate
+                );
+            }
+            
+            if (dateTo) {
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999); // Set to end of day
+                filteredOrders = filteredOrders.filter(order => 
+                    new Date(order.date) <= toDate
+                );
+            }
+            
+            displayInvoice(filteredOrders, branch);
+        }
+        
+        // Display invoice
+        function displayInvoice(filteredOrders, selectedBranch) {
+            const container = document.getElementById('invoiceDisplay');
+            
+            if (filteredOrders.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8">لا توجد طلبات للفترة المحددة</p>';
+                return;
+            }
+            
+            const totalAmount = filteredOrders.reduce((sum, order) => sum + order.total, 0);
+            const branchName = selectedBranch ? getBranchName(selectedBranch) : 'جميع الفروع';
+            
+            container.innerHTML = `
+                <div class="invoice-header text-center mb-6 pb-6 border-b">
+                    <img src="be sanus 1.jpg" alt="شعار بي سانوس للفاتورة - لوجو رسمي للشركة مع كتابة be sanus واضحة" class="mx-auto mb-4 rounded-full">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">فاتورة ${branchName}</h2>
+                    <div class="text-gray-600">
+                        <p>تاريخ الإصدار: ${new Date().toLocaleDateString('ar-SA')}</p>
+                        <p>عدد الطلبات: ${filteredOrders.length}</p>
+                    </div>
+                </div>
+                
+                <div class="invoice-items mb-6">
+                    <h3 class="text-lg font-semibold mb-4">تفاصيل الطلبات:</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-right">رقم الطلب</th>
+                                    <th class="px-4 py-3 text-right">التاريخ</th>
+                                    <th class="px-4 py-3 text-right">المستخدم</th>
+                                    <th class="px-4 py-3 text-right">المنصب</th>
+                                    <th class="px-4 py-3 text-right">عدد العناصر</th>
+                                    <th class="px-4 py-3 text-right">المبلغ</th>
+                                    <th class="px-4 py-3 text-right">الإجراءات</th> <!-- New column for actions -->
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredOrders.map(order => `
+                                    <tr class="border-b hover:bg-gray-100">
+                                        <td class="px-4 py-3 cursor-pointer" onclick="viewInvoiceDetails(${order.id})">#${order.id}</td>
+                                        <td class="px-4 py-3 cursor-pointer" onclick="viewInvoiceDetails(${order.id})">${new Date(order.date).toLocaleDateString('ar-SA')}</td>
+                                        <td class="px-4 py-3 cursor-pointer" onclick="viewInvoiceDetails(${order.id})">${order.user}</td>
+                                        <td class="px-4 py-3 cursor-pointer" onclick="viewInvoiceDetails(${order.id})">${getPositionName(order.position)}</td>
+                                        <td class="px-4 py-3 cursor-pointer" onclick="viewInvoiceDetails(${order.id})">${order.items.length}</td>
+                                        <td class="px-4 py-3 font-medium cursor-pointer" onclick="viewInvoiceDetails(${order.id})">${order.total.toFixed(2)} ريال</td>
+                                        <td class="px-4 py-3">
+                                            ${(currentUser && (currentUser.position === 'manager' || currentUser.position === 'admin')) ? `
+                                                <button onclick="deleteInvoice(${order.id})" class="text-red-500 hover:text-red-700">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            ` : ''}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="total-section">
+                    <div class="flex justify-between items-center text-xl">
+                        <span class="font-bold">المجموع الإجمالي:</span>
+                        <span class="font-bold text-be-sanus-green">${totalAmount.toFixed(2)} ريال سعودي</span>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-6 pt-6 border-t text-sm text-gray-600">
+                    <p>شركة بي سانوس للأغذية الصحية</p>
+                    <p>هذه الفاتورة تم إنشاؤها إلكترونياً ولا تحتاج إلى توقيع</p>
+                </div>
+            `;
+        }
+        
+        // Display invoices (default view)
+        function displayInvoices() {
+            // Dates are already set on DOMContentLoaded, just generate
+            generateInvoice();
+        }
+        
+        // Update reports
+        function updateReports() {
+            const dateFrom = document.getElementById('reportDateFrom').value;
+            const dateTo = document.getElementById('reportDateTo').value;
+
+            let filteredOrders = orders;
+
+            // Filter by date
+            if (dateFrom) {
+                const fromDate = new Date(dateFrom);
+                fromDate.setHours(0, 0, 0, 0); // Set to start of day
+                filteredOrders = filteredOrders.filter(order => 
+                    new Date(order.date) >= fromDate
+                );
+            }
+            
+            if (dateTo) {
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999); // Set to end of day
+                filteredOrders = filteredOrders.filter(order => 
+                    new Date(order.date) <= toDate
+                );
+            }
+
+            // Total sales
+            const totalSales = filteredOrders.reduce((sum, order) => sum + order.total, 0);
+            document.getElementById('totalSales').textContent = totalSales.toFixed(2);
+            
+            // Total orders
+            document.getElementById('totalOrders').textContent = filteredOrders.length;
+            
+            // Total products (this remains the count of all products, not filtered by sales)
+            document.getElementById('totalProducts').textContent = products.length;
+            
+            // Update report table with filtered orders
+            updateReportTable(filteredOrders);
+        }
+        
+        // Update report table
+        function updateReportTable(filteredOrders) { // Accept filteredOrders as argument
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+            
+            // Calculate product statistics
+            const productStats = {};
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Set to start of today
+
+            filteredOrders.forEach(order => { // Use filteredOrders here
+                const orderDate = new Date(order.date);
+                orderDate.setHours(0, 0, 0, 0); // Set order date to start of day for comparison
+
+                // Only consider orders from today for "daily cooked total"
+                const isTodayOrder = orderDate.getTime() === today.getTime();
+
+                order.items.forEach(item => {
+                    if (!productStats[item.productId]) {
+                        productStats[item.productId] = {
+                            name: item.productName,
+                            totalQuantity: 0, // Total quantity sold across all time
+                            totalSales: 0,    // Total sales across all time
+                            dailyCookedTotal: 0, // New: Total quantity for today
+                            lastOrderDate: order.date
+                        };
+                    }
+                    
+                    productStats[item.productId].totalQuantity += item.quantity;
+                    productStats[item.productId].totalSales += item.total;
+                    
+                    if (isTodayOrder) { // Add to daily cooked total if it's an order from today
+                        productStats[item.productId].dailyCookedTotal += item.quantity;
+                    }
+
+                    // Update last order date only if it's within the filtered range
+                    if (new Date(order.date) > new Date(productStats[item.productId].lastOrderDate)) {
+                        productStats[item.productId].lastOrderDate = order.date;
+                    }
+                });
+            });
+            
+            // Display statistics
+            Object.values(productStats).forEach(stat => {
+                const row = document.createElement('tr');
+                row.className = 'border-b hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="px-4 py-3">${stat.name}</td>
+                    <td class="px-4 py-3">${stat.totalQuantity.toFixed(2)}</td>
+                    <td class="px-4 py-3">${stat.totalSales.toFixed(2)} ريال</td>
+                    <td class="px-4 py-3">${stat.dailyCookedTotal.toFixed(2)}</td>
+                    <td class="px-4 py-3">${new Date(stat.lastOrderDate).toLocaleDateString('ar-SA')}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            if (Object.keys(productStats).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">لا توجد بيانات</td></tr>';
+            }
+        }
+
+        // Users Management (NEW FUNCTIONS)
+        function displayUsers() {
+            const usersList = document.getElementById('usersList');
+            usersList.innerHTML = '';
+
+            if (authorizedUsers.length === 0) {
+                usersList.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد مستخدمين مضافين</p>';
+                return;
+            }
+
+            authorizedUsers.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'bg-gray-50 p-4 rounded-lg';
+                userDiv.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-bold text-gray-800">${user.username}</h4>
+                            <p class="text-sm text-gray-600">${getBranchName(user.branch)} - ${getPositionName(user.position)}</p>
+                        </div>
+                        <button onclick="deleteUser('${user.username}')" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                `;
+                usersList.appendChild(userDiv);
+            });
+        }
+
+        async function addUser(e) {
+            e.preventDefault(); // Prevent form submission
+
+            const newUsername = document.getElementById('newUsername').value;
+            const newUserPassword = document.getElementById('newUserPassword').value;
+            const newUserBranch = document.getElementById('newUserBranch').value;
+            const newUserPosition = document.getElementById('newUserPosition').value;
+
+            if (!newUsername || !newUserPassword || !newUserBranch || !newUserPosition) {
+                showToast('يرجى ملء جميع حقول المستخدم الجديد.', 'error');
+                return;
+            }
+
+            // Check if username already exists
+            if (authorizedUsers.some(user => user.username === newUsername)) {
+                showToast('اسم المستخدم هذا موجود بالفعل. يرجى اختيار اسم مستخدم آخر.', 'error');
+                return;
+            }
+
+            toggleLoading('addUserBtn', true); // Show loading spinner
+            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+
+            const newUser = {
+                username: newUsername,
+                password: newUserPassword,
+                branch: newUserBranch,
+                position: newUserPosition
+            };
+
+            authorizedUsers.push(newUser);
+            localStorage.setItem('authorizedUsers', JSON.stringify(authorizedUsers));
+            showToast('تم إضافة المستخدم بنجاح!', 'success');
+            document.getElementById('userForm').reset();
+            displayUsers();
+            toggleLoading('addUserBtn', false, '<i class="fas fa-user-plus ml-2"></i> إضافة مستخدم'); // Hide loading spinner
+        }
+
+        function deleteUser(usernameToDelete) {
+            if (confirm(`هل أنت متأكد من حذف المستخدم "${usernameToDelete}"؟`)) {
+                authorizedUsers = authorizedUsers.filter(user => user.username !== usernameToDelete);
+                localStorage.setItem('authorizedUsers', JSON.stringify(authorizedUsers));
+                showToast('تم حذف المستخدم بنجاح!', 'success');
+                displayUsers();
+            }
+        }
+
+        // NEW: Cooking Quantities Management Functions
+        // Update cooking product select dropdown
+        function updateCookingProductSelect() {
+            const select = document.getElementById('cookingProduct');
+            select.innerHTML = '<option value="">-- اختر صنف --</option>';
+
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = `${product.name} (${getUnitName(product.unit)})`;
+                select.appendChild(option);
+            });
+        }
+
+        // Add daily cooking entry
+        document.getElementById('dailyCookingForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Only allow manager or employee to add entries
+            if (currentUser.position !== 'manager' && currentUser.position !== 'employee') {
+                showToast('ليس لديك الصلاحية لإضافة إدخالات الطبخ.', 'error');
+                return;
+            }
+
+            const cookingDate = document.getElementById('cookingDate').value;
+            const productId = document.getElementById('cookingProduct').value;
+            const cookedQuantity = parseFloat(document.getElementById('cookedQuantity').value);
+            const distributedQuantity = parseFloat(document.getElementById('distributedQuantity').value);
+
+            if (!cookingDate || !productId || isNaN(cookedQuantity) || isNaN(distributedQuantity) || cookedQuantity < 0 || distributedQuantity < 0) {
+                showToast('يرجى ملء جميع الحقول بكميات صحيحة وموجبة.', 'error');
+                return;
+            }
+
+            const product = products.find(p => p.id == productId);
+            if (!product) {
+                showToast('الصنف المحدد غير موجود.', 'error');
+                return;
+            }
+
+            const remainingQuantity = cookedQuantity - distributedQuantity;
+
+            toggleLoading('addCookingEntryBtn', true);
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const entry = {
+                id: Date.now(),
+                date: cookingDate,
+                productId: product.id,
+                productName: product.name,
+                productUnit: product.unit,
+                cookedQuantity: cookedQuantity,
+                distributedQuantity: distributedQuantity,
+                remainingQuantity: remainingQuantity,
+                user: currentUser.username,
+                branch: currentUser.branch,
+                position: currentUser.position
+            };
+
+            cookingEntries.push(entry);
+            localStorage.setItem('cookingEntries', JSON.stringify(cookingEntries));
+
+            showToast('تم إضافة إدخال الطبخ بنجاح.', 'success');
+            this.reset();
+            document.getElementById('cookingDate').valueAsDate = new Date(); // Reset date to current
+            toggleLoading('addCookingEntryBtn', false, '<i class="fas fa-plus ml-2"></i> إضافة إدخال');
+
+            displayAllCookingEntries();
+            displayDailyCookingSummary();
+        });
+
+        // Display all cooking entries in table
+        function displayAllCookingEntries() {
+            const tbody = document.getElementById('allCookingEntriesTableBody');
+            tbody.innerHTML = '';
+
+            if (cookingEntries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">لا توجد إدخالات طبخ</td></tr>';
+                return;
+            }
+
+            // Sort entries by date descending
+            const sortedEntries = [...cookingEntries].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            sortedEntries.forEach(entry => {
+                const row = document.createElement('tr');
+                row.className = 'border-b hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="px-4 py-3">${new Date(entry.date).toLocaleDateString('ar-SA')}</td>
+                    <td class="px-4 py-3">${entry.productName}</td>
+                    <td class="px-4 py-3">${entry.cookedQuantity} ${getUnitName(entry.productUnit)}</td>
+                    <td class="px-4 py-3">${entry.distributedQuantity} ${getUnitName(entry.productUnit)}</td>
+                    <td class="px-4 py-3">${entry.remainingQuantity} ${getUnitName(entry.productUnit)}</td>
+                    <td class="px-4 py-3">${entry.user} (${getBranchName(entry.branch)})</td>
+                    <td class="px-4 py-3">
+                        ${(currentUser && (currentUser.position === 'manager' || currentUser.position === 'admin')) ? `
+                            <button onclick="deleteCookingEntry(${entry.id})" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Delete cooking entry
+        function deleteCookingEntry(entryId) {
+            // Only allow manager or admin to delete entries
+            if (currentUser.position !== 'manager' && currentUser.position !== 'admin') {
+                showToast('ليس لديك الصلاحية لحذف إدخالات الطبخ.', 'error');
+                return;
+            }
+
+            if (confirm('هل أنت متأكد من حذف هذا الإدخال؟')) {
+                cookingEntries = cookingEntries.filter(entry => entry.id !== entryId);
+                localStorage.setItem('cookingEntries', JSON.stringify(cookingEntries));
+                showToast('تم حذف الإدخال بنجاح.', 'success');
+                displayAllCookingEntries();
+                displayDailyCookingSummary();
+            }
+        }
+
+        // Display daily cooking summary
+        function displayDailyCookingSummary() {
+            const summaryList = document.getElementById('dailyCookingSummaryList');
+            summaryList.innerHTML = '';
+
+            const filterDate = document.getElementById('summaryDateFilter').value;
+            if (!filterDate) {
+                summaryList.innerHTML = '<p class="text-gray-500 text-center py-4">اختر تاريخًا لعرض الملخص</p>';
+                return;
+            }
+
+            const filteredEntries = cookingEntries.filter(entry => entry.date === filterDate);
+
+            if (filteredEntries.length === 0) {
+                summaryList.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد إدخالات لهذا التاريخ</p>';
+                return;
+            }
+
+            // Aggregate data for summary
+            const dailySummary = {};
+            filteredEntries.forEach(entry => {
+                if (!dailySummary[entry.productId]) {
+                    dailySummary[entry.productId] = {
+                        productName: entry.productName,
+                        productUnit: entry.productUnit,
+                        totalCooked: 0,
+                        totalDistributed: 0,
+                        totalRemaining: 0
+                    };
+                }
+                dailySummary[entry.productId].totalCooked += entry.cookedQuantity;
+                dailySummary[entry.productId].totalDistributed += entry.distributedQuantity;
+                dailySummary[entry.productId].totalRemaining += entry.remainingQuantity;
+            });
+
+            Object.values(dailySummary).forEach(summary => {
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'bg-gray-50 p-4 rounded-lg';
+                summaryDiv.innerHTML = `
+                    <h4 class="font-bold text-gray-800">${summary.productName}</h4>
+                    <p class="text-sm text-gray-600">المطبوخ: ${summary.totalCooked} ${getUnitName(summary.productUnit)}</p>
+                    <p class="text-sm text-gray-600">الموزع: ${summary.totalDistributed} ${getUnitName(summary.productUnit)}</p>
+                    <p class="text-sm text-gray-600">المتبقي: ${summary.totalRemaining} ${getUnitName(summary.productUnit)}</p>
+                `;
+                summaryList.appendChild(summaryDiv);
+            });
+        }
+
+        // Function to download report as PDF
+        async function downloadReportPdf() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'pt', 'a4'); // 'p' for portrait, 'pt' for points, 'a4' for A4 size
+
+            const reportContent = document.getElementById('reportsSection'); // Get the entire reports section
+
+            toggleLoading('downloadReportPdfBtn', true);
+            
+            // Temporarily hide elements that shouldn't be in the PDF (like sidebar, header, other sections)
+            const sidebar = document.querySelector('.sidebar');
+            const mainHeader = document.querySelector('.flex-1 > div:first-child'); // The header with page title and date
+            const otherSections = document.querySelectorAll('.section:not(#reportsSection)');
+            
+            sidebar.style.display = 'none';
+            mainHeader.style.display = 'none';
+            otherSections.forEach(sec => sec.style.display = 'none');
+
+            // Adjust main content width for PDF generation if necessary
+            const mainContent = document.querySelector('.flex-1');
+            const originalMainContentPadding = mainContent.style.padding;
+            mainContent.style.padding = '20px'; // Adjust padding for better PDF layout
+
+            // Use html2canvas to render the report section as an image
+            await html2canvas(reportContent, {
+                scale: 2, // Increase scale for better quality
+                useCORS: true, // Enable CORS for images if any
+                windowWidth: reportContent.scrollWidth, // Capture full width
+                windowHeight: reportContent.scrollHeight // Capture full height
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 595; // A4 width in points (approx)
+                const pageHeight = 842; // A4 height in points (approx)
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    doc.addPage();
+                    position = heightLeft - imgHeight;
+                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                
+                doc.save('تقرير_بي_سانوس.pdf');
+                showToast('تم تحميل التقرير بصيغة PDF بنجاح.', 'success');
+            }).catch(error => {
+                console.error('Error generating PDF:', error);
+                showToast('حدث خطأ أثناء إنشاء ملف PDF.', 'error');
+            });
+
+            // Restore original display properties
+            sidebar.style.display = ''; // Restore default display
+            mainHeader.style.display = ''; // Restore default display
+            otherSections.forEach(sec => sec.style.display = '');
+            mainContent.style.padding = originalMainContentPadding; // Restore original padding
+            toggleLoading('downloadReportPdfBtn', false, '<i class="fas fa-file-pdf ml-2"></i> تحميل PDF'); // Hide loading spinner
+        }
+
+        // Function to download invoice as PDF
+        async function downloadInvoicePdf() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'pt', 'a4');
+
+            const invoiceContent = document.getElementById('invoiceDisplay');
+
+            toggleLoading('downloadInvoicePdfBtn', true);
+
+            // Temporarily hide elements that shouldn't be in the PDF (like sidebar, header, other sections)
+            const sidebar = document.querySelector('.sidebar');
+            const mainHeader = document.querySelector('.flex-1 > div:first-child');
+            const otherSections = document.querySelectorAll('.section:not(#invoicesSection)');
+            
+            sidebar.style.display = 'none';
+            mainHeader.style.display = 'none';
+            otherSections.forEach(sec => sec.style.display = 'none');
+
+            const mainContent = document.querySelector('.flex-1');
+            const originalMainContentPadding = mainContent.style.padding;
+            mainContent.style.padding = '20px';
+
+            await html2canvas(invoiceContent, {
+                scale: 2,
+                useCORS: true,
+                windowWidth: invoiceContent.scrollWidth,
+                windowHeight: invoiceContent.scrollHeight
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 595;
+                const pageHeight = 842;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    doc.addPage();
+                    position = heightLeft - imgHeight;
+                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                
+                doc.save('فاتورة_بي_سانوس.pdf');
+                showToast('تم تحميل الفاتورة بصيغة PDF بنجاح.', 'success');
+            }).catch(error => {
+                console.error('Error generating PDF:', error);
+                showToast('حدث خطأ أثناء إنشاء ملف PDF.', 'error');
+            });
+
+            // Restore original display properties
+            sidebar.style.display = '';
+            mainHeader.style.display = '';
+            otherSections.forEach(sec => sec.style.display = '');
+            mainContent.style.padding = originalMainContentPadding;
+            toggleLoading('downloadInvoicePdfBtn', false, '<i class="fas fa-file-pdf ml-2"></i> تحميل الفاتورة');
+        }
+        
+        // Logout
+        function logout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                currentUser = null;
+                currentOrder = [];
+                
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+                
+                // Reset login form
+                document.getElementById('loginForm').reset();
+                showToast('تم تسجيل الخروج بنجاح.', 'info');
+            }
+        }
+
+        // View invoice details in modal (reusing order details logic)
+        function viewInvoiceDetails(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) {
+                showToast('الطلب/الفاتورة غير موجودة.', 'error');
+                return;
+            }
+
+            const contentDiv = document.getElementById('invoiceDetailsContent');
+            contentDiv.innerHTML = `
+                <p class="text-gray-700 mb-2"><span class="font-semibold">رقم الفاتورة/الطلب:</span> #${order.id}</p>
+                <p class="text-gray-700 mb-2"><span class="font-semibold">الفرع:</span> ${getBranchName(order.branch)}</p>
+                <p class="text-gray-700 mb-2"><span class="font-semibold">الموظف:</span> ${order.user} (${getPositionName(order.position)})</p>
+                <p class="text-gray-700 mb-4"><span class="font-semibold">التاريخ:</span> ${new Date(order.date).toLocaleString('ar-SA')}</p>
+                
+                <h4 class="font-semibold text-gray-800 mb-3">الأصناف:</h4>
+                <div class="border rounded-lg p-3 mb-4">
+                    ${order.items.map(item => `
+                        <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+                            <div>
+                                <div class="font-medium">${item.productName}</div>
+                                <div class="text-sm text-gray-600">${item.quantity} ${getUnitName(item.unit)} × ${item.unitCost.toFixed(2)} ريال</div>
+                            </div>
+                            <span class="font-medium">${item.total.toFixed(2)} ريال</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('modalInvoiceGrandTotal').textContent = order.total.toFixed(2) + ' ريال';
+            document.getElementById('invoiceDetailsModal').classList.remove('hidden');
+        }
+
+        // Close invoice details modal
+        function closeInvoiceDetailsModal() {
+            document.getElementById('invoiceDetailsModal').classList.add('hidden');
+        }
+
+        // Sidebar toggle for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        // Delete Invoice function
+        function deleteInvoice(orderId) {
+            // Check if current user is manager or admin
+            if (currentUser.position !== 'manager' && currentUser.position !== 'admin') {
+                showToast('ليس لديك الصلاحية لحذف الفواتير.', 'error');
+                return;
+            }
+
+            if (confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
+                orders = orders.filter(order => order.id !== orderId);
+                localStorage.setItem('orders', JSON.stringify(orders));
+                generateInvoice(); // Regenerate the invoice display after deletion
+                updateReports(); // Update reports as well
+                showToast('تم حذف الفاتورة بنجاح.', 'success');
+            }
+        }
+    </script>
+</body>
+</html>
