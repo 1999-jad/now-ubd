@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة الأعمال العام - بي سانوس</title>
+    <title>نظام إدارة الأعمال التشاركي - بي سانوس</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <!-- jsPDF and html2canvas libraries for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -133,7 +135,34 @@
             background-color: #f5f5f5;
         }
 
-        /* NEW: Online indicator styles */
+        /* Connection status indicator */
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 100;
+            font-weight: bold;
+        }
+
+        .connected {
+            background-color: rgba(34, 197, 94, 0.9);
+            color: white;
+        }
+
+        .disconnected {
+            background-color: rgba(239, 68, 68, 0.9);
+            color: white;
+        }
+
+        .connecting {
+            background-color: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        /* Online indicator styles */
         .online-indicator {
             display: inline-block;
             width: 12px;
@@ -156,12 +185,6 @@
             }
         }
 
-        /* NEW: Collaborative editing styles */
-        .editing-indicator {
-            border: 2px solid #3b82f6;
-            background-color: rgba(59, 130, 246, 0.1);
-        }
-
         .user-avatar {
             width: 32px;
             height: 32px;
@@ -175,7 +198,7 @@
             font-size: 12px;
         }
 
-        /* NEW: Real-time sync indicator */
+        /* Real-time sync indicator */
         .sync-indicator {
             position: fixed;
             top: 20px;
@@ -228,78 +251,183 @@
             margin-bottom: 8px;
             border-radius: 0 8px 8px 0;
         }
+
+        /* Login specific styles */
+        .login-container {
+            background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .role-admin {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .role-employee {
+            background-color: #dbeafe;
+            color: #2563eb;
+        }
+
+        .role-guest {
+            background-color: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .restricted-content {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* Form input focus styles */
+        .form-input {
+            transition: all 0.3s ease;
+            border: 2px solid #e5e7eb;
+        }
+
+        .form-input:focus {
+            border-color: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+            outline: none;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
+    <!-- Connection Status Indicator -->
+    <div id="connectionStatus" class="connection-status connecting">
+        <i class="fas fa-wifi mr-2"></i>
+        جاري الاتصال...
+    </div>
+
     <!-- Real-time sync indicator -->
     <div id="syncIndicator" class="sync-indicator">
         <i class="fas fa-sync-alt fa-spin mr-2"></i>
         <span id="syncMessage">جاري المزامنة...</span>
     </div>
 
-    <!-- Welcome Screen (NEW) -->
-    <div id="welcomeScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 via-green-500 to-green-600">
-        <div class="card p-8 m-4 w-full max-w-2xl">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card fade-in">
             <div class="text-center mb-8">
-                <img src="https://placehold.co/150x150" alt="شعار شركة بي سانوس - امرأة بشعر مجعد أخضر مع شريط أخضر وكتابة be sanus" class="mx-auto mb-4 rounded-full">
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">مرحباً بك في نظام بي سانوس العام</h1>
-                <p class="text-gray-600 mb-6">نظام إدارة الأعمال التشاركي - يمكن للجميع المشاركة والتعديل</p>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-green-50 p-4 rounded-lg">
-                    <i class="fas fa-users text-green-500 text-2xl mb-2"></i>
-                    <h3 class="font-bold text-gray-800">تعاون جماعي</h3>
-                    <p class="text-sm text-gray-600">يمكن للعديد من المستخدمين العمل معاً في نفس الوقت</p>
+                <img src="https://placehold.co/120x120" alt="شعار شركة بي سانوس - امرأة بشعر مجعد أخضر مع شريط أخضر وكتابة be sanus" class="mx-auto mb-4 rounded-full shadow-lg">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">نظام بي سانوس</h1>
+                <p class="text-gray-600">إدارة الأعمال التشاركي</p>
+                
+                <!-- Server Connection Status -->
+                <div id="loginServerInfo" class="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                    <div class="flex items-center justify-center mb-2">
+                        <i class="fas fa-server text-blue-500 mr-2"></i>
+                        <span class="font-medium text-sm">حالة الخادم</span>
+                    </div>
+                    <div id="loginServerStatus" class="text-sm text-gray-600">جاري الاتصال...</div>
                 </div>
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <i class="fas fa-sync-alt text-blue-500 text-2xl mb-2"></i>
-                    <h3 class="font-bold text-gray-800">مزامنة فورية</h3>
-                    <p class="text-sm text-gray-600">جميع التغييرات تحفظ وتزامن تلقائياً</p>
-                </div>
-                <div class="bg-purple-50 p-4 rounded-lg">
-                    <i class="fas fa-shield-alt text-purple-500 text-2xl mb-2"></i>
-                    <h3 class="font-bold text-gray-800">آمن ومفتوح</h3>
-                    <p class="text-sm text-gray-600">لا حاجة لتسجيل دخول، لكن البيانات محفوظة</p>
-                </div>
-                <div class="bg-orange-50 p-4 rounded-lg">
-                    <i class="fas fa-mobile-alt text-orange-500 text-2xl mb-2"></i>
-                    <h3 class="font-bold text-gray-800">متجاوب</h3>
-                    <p class="text-sm text-gray-600">يعمل على جميع الأجهزة والشاشات</p>
+
+                <!-- Demo Login Info -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
+                    <div class="text-center">
+                        <h3 class="font-medium text-sm text-green-800 mb-2">بيانات تجريبية للدخول</h3>
+                        <div class="text-xs text-green-700">
+                            <p><strong>المدير:</strong> عبدالله الجدعاني - كلمة المرور: 1111</p>
+                            <p><strong>موظف:</strong> أحمد محمد - كلمة المرور: 123456</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">اسمك (اختياري)</label>
-                    <input type="text" id="userName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل اسمك للظهور للآخرين">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">الفرع/القسم (اختياري)</label>
-                    <select id="userBranch" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                        <option value="">اختر القسم</option>
-                        <option value="main">الإدارة العامة</option>
-                        <option value="branch1">فرع البغدادية</option>
-                        <option value="branch2">فرع أبحر</option>
-                        <option value="branch3">فرع المحمدية</option>
-                        <option value="branch4">التجارة الإلكترونية</option>
-                        <option value="branch5">المطبخ المركزي</option>
-                        <option value="guest">ضيف/زائر</option>
-                    </select>
-                </div>
-                
-                <button onclick="enterSystem()" class="w-full be-sanus-green text-white py-3 px-4 rounded-lg btn hover:be-sanus-green-dark">
-                    <i class="fas fa-sign-in-alt ml-2"></i>
-                    دخول النظام
-                </button>
-
-                <div class="text-center">
-                    <button onclick="enterAsGuest()" class="text-green-600 hover:text-green-800 text-sm">
-                        <i class="fas fa-user ml-1"></i>
-                        دخول كضيف بدون معلومات
+            <!-- Login Form Only -->
+            <div id="loginTab" class="tab-content">
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">اسم المستخدم</label>
+                        <input type="text" id="loginUsername" class="form-input w-full px-4 py-3 rounded-lg" placeholder="أدخل اسم المستخدم" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                        <div class="relative">
+                            <input type="password" id="loginPassword" class="form-input w-full px-4 py-3 rounded-lg pr-12" placeholder="أدخل كلمة المرور" required>
+                            <button type="button" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="togglePasswordVisibility('loginPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="rememberMe" class="rounded border-gray-300 text-green-600 shadow-sm focus:border-green-300 focus:ring focus:ring-green-200 focus:ring-opacity-50">
+                            <span class="mr-2 text-sm text-gray-600">تذكرني</span>
+                        </label>
+                        <button type="button" onclick="showForgotPassword()" class="text-sm text-green-600 hover:text-green-800">
+                            نسيت كلمة المرور؟
+                        </button>
+                    </div>
+                    
+                    <button type="submit" id="loginBtn" class="w-full be-sanus-green text-white py-3 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                        <i class="fas fa-sign-in-alt ml-2"></i>
+                        تسجيل الدخول
                     </button>
+                </form>
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div id="forgotPasswordTab" class="tab-content hidden">
+                <div class="text-center mb-6">
+                    <i class="fas fa-key text-4xl text-green-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">استرداد كلمة المرور</h3>
+                    <p class="text-gray-600 text-sm">أدخل بريدك الإلكتروني لإرسال رابط إعادة تعيين كلمة المرور</p>
                 </div>
+                
+                <form id="forgotPasswordForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                        <input type="email" id="forgotEmail" class="form-input w-full px-4 py-3 rounded-lg" placeholder="أدخل بريدك الإلكتروني" required>
+                    </div>
+                    
+                    <button type="submit" id="forgotPasswordBtn" class="w-full be-sanus-green text-white py-3 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                        <i class="fas fa-paper-plane ml-2"></i>
+                        إرسال رابط الاسترداد
+                    </button>
+                    
+                    <div class="text-center">
+                        <button type="button" onclick="showLoginTab()" class="text-green-600 hover:text-green-800 text-sm">
+                            <i class="fas fa-arrow-right ml-1"></i>
+                            العودة لتسجيل الدخول
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -316,7 +444,11 @@
                         <div class="online-indicator"></div>
                         <span>متصل الآن</span>
                     </div>
-                    <!-- Online users counter (NEW) -->
+                    <!-- User role badge -->
+                    <div id="userRole" class="text-center mt-2">
+                        <!-- Role badge will be inserted here -->
+                    </div>
+                    <!-- Online users counter -->
                     <div id="onlineUsers" class="text-center text-green-300 text-sm mt-2">
                         <i class="fas fa-users mr-1"></i>
                         <span id="onlineCount">1</span> مستخدم متصل
@@ -332,45 +464,51 @@
                             </button>
                         </li>
                         <li>
-                            <button onclick="showSection('products', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <button onclick="showSection('products', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors" data-permission="products">
                                 <i class="fas fa-box ml-3"></i>
                                 إدارة الأصناف
                             </button>
                         </li>
                         <li>
-                            <button onclick="showSection('orders', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <button onclick="showSection('orders', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors" data-permission="orders">
                                 <i class="fas fa-shopping-cart ml-3"></i>
                                 الطلبات
                             </button>
                         </li>
                         <li>
-                            <button onclick="showSection('invoices', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <button onclick="showSection('invoices', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors" data-permission="invoices">
                                 <i class="fas fa-file-invoice ml-3"></i>
                                 الفواتير
                             </button>
                         </li>
                         <li>
-                            <button onclick="showSection('reports', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <button onclick="showSection('reports', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors" data-permission="reports">
                                 <i class="fas fa-chart-bar ml-3"></i>
                                 التقارير
                             </button>
                         </li>
                         <li>
-                            <button onclick="showSection('users', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <button onclick="showSection('users', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors" data-permission="users">
                                 <i class="fas fa-users-cog ml-3"></i>
                                 المتعاونين
                             </button>
                         </li>
                         <li>
-                            <button onclick="showSection('cookingQuantities', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <button onclick="showSection('cookingQuantities', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors" data-permission="cooking">
                                 <i class="fas fa-utensils ml-3"></i>
                                 كميات الطبخ
+                            </button>
+                        </li>
+                        <li id="adminSection" class="hidden">
+                            <button onclick="showSection('admin', event); toggleSidebar();" class="nav-btn w-full text-right px-4 py-3 rounded-lg hover:bg-green-600 transition-colors" data-permission="admin">
+                                <i class="fas fa-cog ml-3"></i>
+                                إدارة النظام
                             </button>
                         </li>
                     </ul>
                     
                     <div class="mt-auto pt-6">
-                        <!-- Show current collaborators (NEW) -->
+                        <!-- Show current collaborators -->
                         <div id="activeCollaborators" class="mb-4 p-3 bg-green-600 rounded-lg">
                             <h4 class="text-sm font-bold mb-2">المتعاونون النشطون:</h4>
                             <div id="collaboratorsList" class="flex flex-wrap gap-1">
@@ -378,14 +516,19 @@
                             </div>
                         </div>
                         
-                        <button onclick="changeUser()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg btn mb-2">
-                            <i class="fas fa-user-edit ml-2"></i>
-                            تغيير البيانات
+                        <button onclick="showUserSettings()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg btn mb-2">
+                            <i class="fas fa-user-cog ml-2"></i>
+                            إعدادات الحساب
                         </button>
                         
-                        <button onclick="showBackupOptions()" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg btn">
+                        <button onclick="showBackupOptions()" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg btn mb-2">
                             <i class="fas fa-download ml-2"></i>
                             نسخ احتياطي
+                        </button>
+                        
+                        <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg btn">
+                            <i class="fas fa-sign-out-alt ml-2"></i>
+                            تسجيل الخروج
                         </button>
                     </div>
                 </nav>
@@ -405,12 +548,12 @@
                     </div>
                 </div>
 
-                <!-- Dashboard Section (NEW) -->
+                <!-- Dashboard Section -->
                 <div id="dashboardSection" class="section">
                     <!-- Welcome Banner -->
                     <div class="welcome-banner">
-                        <h2 class="text-2xl font-bold mb-2">مرحباً بك في نظام بي سانوس التشاركي</h2>
-                        <p class="text-green-100">يمكنك الآن التعاون مع الآخرين في إدارة البيانات بشكل مباشر وآمن</p>
+                        <h2 class="text-2xl font-bold mb-2">مرحباً بك في نظام بي سانوس المتصل</h2>
+                        <p class="text-green-100">نظام مزامنة فورية مع خادم مركزي للتعاون المثمر</p>
                     </div>
 
                     <!-- Statistics Grid -->
@@ -437,7 +580,7 @@
                         </div>
                     </div>
 
-                    <!-- Live Activity Feed (NEW) -->
+                    <!-- Live Activity Feed -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="card p-6">
                             <h3 class="text-xl font-bold text-gray-800 mb-4">
@@ -463,13 +606,13 @@
 
                 <!-- Products Section -->
                 <div id="productsSection" class="section hidden">
-                    <!-- Collaborative indicator (NEW) -->
+                    <!-- Collaborative indicator -->
                     <div id="collaborativeNotice" class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded">
                         <div class="flex">
                             <i class="fas fa-users text-blue-400 mr-3 mt-1"></i>
                             <div>
-                                <p class="text-blue-800 font-medium">وضع التعاون النشط</p>
-                                <p class="text-blue-600 text-sm">يمكن للجميع إضافة وتعديل الأصناف. التغييرات تظهر فورياً لجميع المستخدمين.</p>
+                                <p class="text-blue-800 font-medium">وضع التعاون النشط - متصل بالخادم</p>
+                                <p class="text-blue-600 text-sm">التغييرات تحفظ فورياً وتظهر لجميع المستخدمين المتصلين</p>
                             </div>
                         </div>
                     </div>
@@ -486,7 +629,7 @@
                                 <input type="hidden" id="productId">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">اسم الصنف</label>
-                                    <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="مثال: ساندويش دجاج">
+                                    <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="مثال: ساندويش دجاج" required>
                                 </div>
                                 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -502,13 +645,13 @@
                                     
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">الكمية المرجعية</label>
-                                        <input type="number" id="productBaseAmount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="100" value="100">
+                                        <input type="number" id="productBaseAmount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="100" value="100" required min="1">
                                     </div>
                                 </div>
                                 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">التكلفة (ريال سعودي)</label>
-                                    <input type="number" id="productCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="23.00">
+                                    <input type="number" id="productCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="23.00" required min="0.01">
                                 </div>
                                 
                                 <div>
@@ -644,7 +787,6 @@
                                     <option value="branch3">فرع المحمدية</option>
                                     <option value="branch4">التجارة الإلكترونية</option>
                                     <option value="branch5">المطبخ المركزي</option>
-                                    <option value="guest">الضيوف/الزوار</option>
                                 </select>
                             </div>
                             
@@ -748,7 +890,7 @@
                     </div>
                 </div>
 
-                <!-- Users Section (Now called "المتعاونين") -->
+                <!-- Users Section -->
                 <div id="usersSection" class="section hidden">
                     <div class="card p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">
@@ -757,12 +899,12 @@
                             <span id="collaboratorsCount" class="text-sm text-gray-500 font-normal">(0 متعاون)</span>
                         </h3>
                         
-                        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded">
+                        <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6 rounded">
                             <div class="flex">
-                                <i class="fas fa-info-circle text-blue-400 mr-3 mt-1"></i>
+                                <i class="fas fa-server text-green-400 mr-3 mt-1"></i>
                                 <div>
-                                    <p class="text-blue-800 font-medium">قائمة المتعاونين الحاليين</p>
-                                    <p class="text-blue-600 text-sm">هؤلاء هم الأشخاص الذين يستخدمون النظام حالياً أو استخدموه مؤخراً</p>
+                                    <p class="text-green-800 font-medium">متصل بالخادم المركزي</p>
+                                    <p class="text-green-600 text-sm">قائمة المتعاونين المتصلين حالياً من جميع الأجهزة</p>
                                 </div>
                             </div>
                         </div>
@@ -800,11 +942,11 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">كمية الطبخ</label>
-                                        <input type="number" id="cookedQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل الكمية المطبوخة" min="0" required>
+                                        <input type="number" id="cookedQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل الكمية المطبوخة" min="0" step="0.01" required>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">كمية التوزيع</label>
-                                        <input type="number" id="distributedQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل كمية التوزيع" min="0" required>
+                                        <input type="number" id="distributedQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="أدخل كمية التوزيع" min="0" step="0.01" required>
                                     </div>
                                     <button type="submit" id="addCookingEntryBtn" class="w-full be-sanus-green text-white py-2 px-4 rounded-lg btn hover:be-sanus-green-dark">
                                         <i class="fas fa-plus ml-2"></i>
@@ -850,7 +992,180 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Admin Section -->
+                <div id="adminSection" class="section hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Add New User Form -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-user-plus text-be-sanus-green ml-2"></i>
+                                إضافة مستخدم جديد
+                            </h3>
+                            
+                            <form id="addUserForm" class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الأول</label>
+                                        <input type="text" id="newUserFirstName" class="form-input w-full px-4 py-3 rounded-lg" placeholder="أحمد" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الأخير</label>
+                                        <input type="text" id="newUserLastName" class="form-input w-full px-4 py-3 rounded-lg" placeholder="محمد" required>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">اسم المستخدم</label>
+                                    <input type="text" id="newUserUsername" class="form-input w-full px-4 py-3 rounded-lg" placeholder="ahmed_mohamed" required>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                                    <input type="email" id="newUserEmail" class="form-input w-full px-4 py-3 rounded-lg" placeholder="ahmed@example.com" required>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                                    <input type="tel" id="newUserPhone" class="form-input w-full px-4 py-3 rounded-lg" placeholder="05xxxxxxxx" required>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">الفرع/القسم</label>
+                                    <select id="newUserBranch" class="form-input w-full px-4 py-3 rounded-lg" required>
+                                        <option value="">اختر القسم</option>
+                                        <option value="main">الإدارة العامة</option>
+                                        <option value="branch1">فرع البغدادية</option>
+                                        <option value="branch2">فرع أبحر</option>
+                                        <option value="branch3">فرع المحمدية</option>
+                                        <option value="branch4">التجارة الإلكترونية</option>
+                                        <option value="branch5">المطبخ المركزي</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">المنصب/الدور</label>
+                                    <select id="newUserPosition" class="form-input w-full px-4 py-3 rounded-lg" required>
+                                        <option value="">اختر المنصب</option>
+                                        <option value="employee">موظف</option>
+                                        <option value="supervisor">مشرف</option>
+                                        <option value="manager">مدير فرع</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">دور المستخدم</label>
+                                    <select id="newUserRole" class="form-input w-full px-4 py-3 rounded-lg" required>
+                                        <option value="">اختر الدور</option>
+                                        <option value="employee">موظف</option>
+                                        <option value="admin">مدير</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                                    <input type="password" id="newUserPassword" class="form-input w-full px-4 py-3 rounded-lg" placeholder="كلمة مرور قوية" required>
+                                </div>
+                                
+                                <button type="submit" id="addUserBtn" class="w-full be-sanus-green text-white py-3 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                                    <i class="fas fa-user-plus ml-2"></i>
+                                    إضافة المستخدم
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- User Management -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-users-cog text-be-sanus-green ml-2"></i>
+                                إدارة المستخدمين
+                            </h3>
+                            
+                            <div class="space-y-4">
+                                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    <h4 class="font-bold text-green-800 mb-2">المستخدمون النشطون</h4>
+                                    <div id="activeUsers" class="space-y-2">
+                                        <!-- Active users will be displayed here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- System Settings -->
+                        <div class="card p-6 lg:col-span-2">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-cog text-be-sanus-green ml-2"></i>
+                                إعدادات النظام
+                            </h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <h4 class="font-bold text-blue-800 mb-2">إعدادات الخادم</h4>
+                                    <div class="text-sm text-blue-600">
+                                        <p>عدد المستخدمين المتصلين: <span id="totalConnectedUsers">0</span></p>
+                                        <p>حالة قاعدة البيانات: <span class="text-green-600">متصلة</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <h4 class="font-bold text-red-800 mb-2">إعدادات خطيرة</h4>
+                                    <button onclick="resetAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg btn text-sm">
+                                        <i class="fas fa-exclamation-triangle ml-2"></i>
+                                        إعادة تعيين جميع البيانات
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- User Settings Modal -->
+    <div id="userSettingsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-4 relative">
+            <button onclick="closeUserSettings()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">إعدادات الحساب</h2>
+            
+            <form id="userSettingsForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+                    <input type="text" id="settingsFullName" class="form-input w-full px-4 py-3 rounded-lg" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                    <input type="email" id="settingsEmail" class="form-input w-full px-4 py-3 rounded-lg" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+                    <input type="tel" id="settingsPhone" class="form-input w-full px-4 py-3 rounded-lg">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور الحالية</label>
+                    <input type="password" id="currentPassword" class="form-input w-full px-4 py-3 rounded-lg" placeholder="اختياري - لتغيير كلمة المرور">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور الجديدة</label>
+                    <input type="password" id="newPassword" class="form-input w-full px-4 py-3 rounded-lg" placeholder="اختياري">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تأكيد كلمة المرور الجديدة</label>
+                    <input type="password" id="confirmNewPassword" class="form-input w-full px-4 py-3 rounded-lg" placeholder="اختياري">
+                </div>
+                
+                <button type="submit" id="saveSettingsBtn" class="w-full be-sanus-green text-white py-3 px-4 rounded-lg btn hover:be-sanus-green-dark">
+                    <i class="fas fa-save ml-2"></i>
+                    حفظ التغييرات
+                </button>
+            </form>
         </div>
     </div>
 
@@ -892,7 +1207,7 @@
         </div>
     </div>
 
-    <!-- Backup Options Modal (NEW) -->
+    <!-- Backup Options Modal -->
     <div id="backupModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-4 relative">
             <button onclick="closeBackupModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-xl">
@@ -919,177 +1234,792 @@
 
     <script>
         // Global variables
+        let socket = null;
+        let isConnected = false;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        let useOfflineMode = false;
+        
         let currentUser = {
-            username: 'ضيف',
-            branch: 'guest',
-            position: 'guest',
-            loginTime: new Date(),
-            id: generateUserId()
+            id: null,
+            username: null,
+            email: null,
+            firstName: null,
+            lastName: null,
+            phone: null,
+            branch: null,
+            position: null,
+            role: 'employee', // employee, admin
+            status: 'active',
+            loginTime: null,
+            isAuthenticated: false
         };
-        let products = JSON.parse(localStorage.getItem('products')) || [];
-        let orders = JSON.parse(localStorage.getItem('orders')) || [];
-        let cookingEntries = JSON.parse(localStorage.getItem('cookingEntries')) || [];
+        
+        // Demo users - هؤلاء المستخدمون للتجربة فقط
+        const demoUsers = [
+            {
+                id: 1,
+                username: 'عبدالله الجدعاني',
+                password: '1111',
+                firstName: 'عبدالله',
+                lastName: 'الجدعاني',
+                email: 'admin@besanus.com',
+                phone: '0501234567',
+                branch: 'main',
+                position: 'manager',
+                role: 'admin',
+                status: 'active',
+                joinTime: new Date()
+            },
+            {
+                id: 2,
+                username: 'أحمد محمد',
+                password: '123456',
+                firstName: 'أحمد',
+                lastName: 'محمد',
+                email: 'ahmed@besanus.com',
+                phone: '0507654321',
+                branch: 'branch1',
+                position: 'employee',
+                role: 'employee',
+                status: 'active',
+                joinTime: new Date()
+            }
+        ];
+        
+        // Shared data variables - now synchronized with server
+        let products = [];
+        let orders = [];
+        let cookingEntries = [];
         let currentOrder = [];
-        let onlineUsers = JSON.parse(localStorage.getItem('onlineUsers')) || [];
-        let activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
+        let onlineUsers = [];
+        let activityLog = [];
+        let registeredUsers = [...demoUsers]; // For admin panel
 
-        // NEW: Generate unique user ID
-        function generateUserId() {
-            return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        // User roles and permissions
+        const userRoles = {
+            employee: {
+                name: 'موظف',
+                permissions: ['dashboard', 'products', 'orders', 'cooking', 'users'],
+                badge: 'role-employee'
+            },
+            admin: {
+                name: 'مدير',
+                permissions: ['dashboard', 'products', 'orders', 'invoices', 'reports', 'cooking', 'users', 'admin'],
+                badge: 'role-admin'
+            }
+        };
+
+        // Initialize Socket.IO connection
+        function initializeSocket() {
+            const serverUrl = window.location.origin;
+            console.log('🔗 محاولة الاتصال بالخادم:', serverUrl);
+            
+            socket = io(serverUrl, {
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionAttempts: maxReconnectAttempts,
+                timeout: 5000
+            });
+
+            socket.on('connect', () => {
+                console.log('✅ تم الاتصال بالخادم');
+                isConnected = true;
+                useOfflineMode = false;
+                reconnectAttempts = 0;
+                updateConnectionStatus('connected', 'متصل بالخادم');
+                enableLoginButtons();
+                updateLoginServerInfo('✅ متصل بالخادم المركزي', 'connected');
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ انقطع الاتصال بالخادم');
+                isConnected = false;
+                updateConnectionStatus('disconnected', 'غير متصل - وضع محلي');
+                updateLoginServerInfo('❌ انقطع الاتصال - الوضع المحلي نشط', 'disconnected');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('❌ خطأ في الاتصال:', error);
+                isConnected = false;
+                reconnectAttempts++;
+                
+                if (reconnectAttempts >= maxReconnectAttempts) {
+                    useOfflineMode = true;
+                    updateConnectionStatus('disconnected', 'وضع محلي - لا يوجد خادم');
+                    updateLoginServerInfo('⚠️ الوضع المحلي نشط - بيانات محلية فقط', 'error');
+                    enableLoginButtons(); // Enable offline mode
+                } else {
+                    updateConnectionStatus('connecting', `محاولة إعادة الاتصال (${reconnectAttempts}/${maxReconnectAttempts})`);
+                    updateLoginServerInfo(`🔄 محاولة إعادة الاتصال (${reconnectAttempts}/${maxReconnectAttempts})`, 'connecting');
+                }
+            });
+
+            socket.on('reconnect', () => {
+                console.log('🔄 تم إعادة الاتصال بالخادم');
+                isConnected = true;
+                useOfflineMode = false;
+                reconnectAttempts = 0;
+                updateConnectionStatus('connected', 'تم إعادة الاتصال');
+                updateLoginServerInfo('✅ تم إعادة الاتصال بالخادم', 'connected');
+                
+                // Re-authenticate user after reconnection
+                if (currentUser.isAuthenticated) {
+                    socket.emit('userJoin', currentUser);
+                }
+            });
+
+            // Listen for authentication responses
+            socket.on('authResponse', (response) => {
+                if (response.success) {
+                    currentUser = { ...currentUser, ...response.user, isAuthenticated: true };
+                    enterDashboard();
+                } else {
+                    showToast(response.message, 'error');
+                    toggleLoading('loginBtn', false);
+                }
+            });
+
+            // Listen for initial data from server
+            socket.on('initialData', (data) => {
+                console.log('📦 تلقي البيانات الأولية من الخادم');
+                products = data.products || [];
+                orders = data.orders || [];
+                cookingEntries = data.cookingEntries || [];
+                onlineUsers = data.onlineUsers || [];
+                activityLog = data.activityLog || [];
+                registeredUsers = [...demoUsers, ...(data.registeredUsers || [])];
+                
+                // Update displays if user is logged in
+                if (!document.getElementById('dashboard').classList.contains('hidden')) {
+                    updateAllDisplays();
+                }
+            });
+
+            // Listen for data updates
+            socket.on('dataUpdate', (update) => {
+                console.log('🔄 تحديث البيانات:', update.type);
+                
+                if (update.type === 'products') {
+                    products = update.data;
+                    displayProducts();
+                    updateOrderProductSelect();
+                    updateCookingProductSelect();
+                } else if (update.type === 'orders') {
+                    orders = update.data;
+                    displayOrders();
+                } else if (update.type === 'cookingEntries') {
+                    cookingEntries = update.data;
+                    displayAllCookingEntries();
+                    displayDailyCookingSummary();
+                } else if (update.type === 'users') {
+                    registeredUsers = [...demoUsers, ...(update.data || [])];
+                    displayAdminUsers();
+                }
+                
+                if (update.activity) {
+                    activityLog.unshift(update.activity);
+                    if (activityLog.length > 100) {
+                        activityLog = activityLog.slice(0, 100);
+                    }
+                    updateLiveActivity();
+                    updateRecentUpdates();
+                }
+                
+                updateReports();
+                updateDashboardStats();
+                showSyncIndicator('تم التحديث', 'success');
+            });
+
+            // Listen for user updates
+            socket.on('userUpdate', (update) => {
+                if (update.onlineUsers) {
+                    onlineUsers = update.onlineUsers;
+                    updateOnlineUsersDisplay();
+                }
+                
+                if (update.activity) {
+                    activityLog.unshift(update.activity);
+                    if (activityLog.length > 100) {
+                        activityLog = activityLog.slice(0, 100);
+                    }
+                    updateLiveActivity();
+                }
+            });
         }
 
-        // NEW: Add activity to log
+        // Demo login function for offline mode
+        function authenticateOffline(username, password) {
+            const user = demoUsers.find(u => 
+                (u.username === username || u.email === username) && 
+                u.password === password
+            );
+            
+            if (user) {
+                currentUser = {
+                    ...user,
+                    isAuthenticated: true,
+                    loginTime: new Date()
+                };
+                
+                // Add user to online users list
+                onlineUsers = [currentUser];
+                
+                // Add login activity
+                addActivity('تسجيل دخول للنظام', `تم الدخول بالوضع المحلي`);
+                
+                return true;
+            }
+            return false;
+        }
+
+        // Add activity to log (for offline mode)
         function addActivity(action, details = '') {
             const activity = {
                 id: Date.now(),
-                timestamp: new Date().toISOString(),
-                user: currentUser.username,
+                user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
                 branch: currentUser.branch,
                 action: action,
-                details: details
+                details: details,
+                timestamp: new Date().toISOString()
             };
             
-            activityLog.unshift(activity); // Add to beginning
-            if (activityLog.length > 100) { // Keep only last 100 activities
+            activityLog.unshift(activity);
+            if (activityLog.length > 100) {
                 activityLog = activityLog.slice(0, 100);
             }
             
-            localStorage.setItem('activityLog', JSON.stringify(activityLog));
             updateLiveActivity();
-            broadcastActivity(activity);
+            updateRecentUpdates();
         }
 
-        // NEW: Broadcast activity to other users (simulation)
-        function broadcastActivity(activity) {
-            // In a real application, this would use WebSocket or SSE
-            // For now, we'll just trigger updates
-            setTimeout(() => {
-                updateLiveActivity();
-                updateRecentUpdates();
-            }, 100);
+        // Update connection status display
+        function updateConnectionStatus(status, message) {
+            const indicator = document.getElementById('connectionStatus');
+            indicator.className = `connection-status ${status}`;
+            indicator.innerHTML = `
+                <i class="fas ${status === 'connected' ? 'fa-wifi' : status === 'connecting' ? 'fa-spinner fa-spin' : 'fa-wifi'} mr-2"></i>
+                ${message}
+            `;
         }
 
-        // NEW: Update live activity display
-        function updateLiveActivity() {
-            const container = document.getElementById('liveActivity');
-            if (!container) return;
+        // Update server info in login screen
+        function updateLoginServerInfo(message, status) {
+            const serverStatus = document.getElementById('loginServerStatus');
+            const colors = {
+                'connected': 'text-green-600',
+                'disconnected': 'text-red-600',
+                'connecting': 'text-blue-600',
+                'error': 'text-orange-600'
+            };
             
-            container.innerHTML = '';
+            serverStatus.innerHTML = `<span class="${colors[status] || 'text-gray-600'}">${message}</span>`;
+        }
+
+        // Enable/disable login screen buttons based on connection
+        function enableLoginButtons() {
+            const loginBtn = document.getElementById('loginBtn');
+            const forgotBtn = document.getElementById('forgotPasswordBtn');
             
-            const recentActivities = activityLog.slice(0, 5); // Show last 5 activities
+            if (loginBtn) loginBtn.disabled = false;
+            if (forgotBtn) forgotBtn.disabled = !isConnected; // Forgot password only works online
             
-            if (recentActivities.length === 0) {
-                container.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد أنشطة حديثة</p>';
-                return;
-            }
+            const buttons = [loginBtn, forgotBtn].filter(Boolean);
             
-            recentActivities.forEach(activity => {
-                const timeAgo = getTimeAgo(activity.timestamp);
-                const activityDiv = document.createElement('div');
-                activityDiv.className = 'activity-item';
-                activityDiv.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="font-medium text-gray-800">${activity.action}</p>
-                            <p class="text-sm text-gray-600">${activity.user} - ${getBranchName(activity.branch)}</p>
-                            ${activity.details ? `<p class="text-sm text-gray-500 mt-1">${activity.details}</p>` : ''}
-                        </div>
-                        <span class="text-xs text-gray-500">${timeAgo}</span>
-                    </div>
-                `;
-                container.appendChild(activityDiv);
+            buttons.forEach(btn => {
+                btn.classList.remove('opacity-50');
             });
         }
 
-        // NEW: Update recent updates display
-        function updateRecentUpdates() {
-            const container = document.getElementById('recentUpdates');
-            if (!container) return;
-            
-            container.innerHTML = '';
-            
-            const updates = [
-                { type: 'products', count: products.length, label: 'الأصناف' },
-                { type: 'orders', count: orders.length, label: 'الطلبات' },
-                { type: 'cooking', count: cookingEntries.length, label: 'إدخالات الطبخ' }
-            ];
-            
-            updates.forEach(update => {
-                const updateDiv = document.createElement('div');
-                updateDiv.className = 'activity-item';
-                updateDiv.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-800">${update.label}</p>
-                            <p class="text-sm text-gray-600">العدد الحالي: ${update.count}</p>
-                        </div>
-                        <i class="fas fa-chart-bar text-gray-400"></i>
-                    </div>
-                `;
-                container.appendChild(updateDiv);
-            });
+        // Show forgot password
+        function showForgotPassword() {
+            document.getElementById('loginTab').classList.add('hidden');
+            document.getElementById('forgotPasswordTab').classList.remove('hidden');
         }
 
-        // NEW: Get time ago string
-        function getTimeAgo(timestamp) {
-            const now = new Date();
-            const time = new Date(timestamp);
-            const diffInSeconds = Math.floor((now - time) / 1000);
-            
-            if (diffInSeconds < 60) return 'الآن';
-            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} دقيقة`;
-            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ساعة`;
-            return `${Math.floor(diffInSeconds / 86400)} يوم`;
+        // Show login tab
+        function showLoginTab() {
+            document.getElementById('loginTab').classList.remove('hidden');
+            document.getElementById('forgotPasswordTab').classList.add('hidden');
         }
 
-        // NEW: Update online users
-        function updateOnlineUsers() {
-            // Remove offline users (older than 5 minutes)
-            const fiveMinutesAgo = new Date().getTime() - (5 * 60 * 1000);
-            onlineUsers = onlineUsers.filter(user => 
-                new Date(user.lastSeen).getTime() > fiveMinutesAgo
-            );
+        // Toggle password visibility
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = input.nextElementSibling.querySelector('i');
             
-            // Update current user's last seen
-            const userIndex = onlineUsers.findIndex(user => user.id === currentUser.id);
-            if (userIndex >= 0) {
-                onlineUsers[userIndex].lastSeen = new Date().toISOString();
-                onlineUsers[userIndex].username = currentUser.username;
-                onlineUsers[userIndex].branch = currentUser.branch;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
             } else {
-                onlineUsers.push({
-                    id: currentUser.id,
-                    username: currentUser.username,
-                    branch: currentUser.branch,
-                    lastSeen: new Date().toISOString()
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Login form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            // Login form
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('loginUsername').value.trim();
+                const password = document.getElementById('loginPassword').value;
+                const rememberMe = document.getElementById('rememberMe').checked;
+                
+                if (!username || !password) {
+                    showToast('يرجى ملء جميع الحقول', 'error');
+                    return;
+                }
+                
+                toggleLoading('loginBtn', true);
+                
+                // Try online authentication first
+                if (isConnected && socket) {
+                    socket.emit('userLogin', {
+                        username: username,
+                        password: password,
+                        rememberMe: rememberMe
+                    });
+                } else {
+                    // Fallback to offline authentication
+                    if (authenticateOffline(username, password)) {
+                        setTimeout(() => {
+                            toggleLoading('loginBtn', false);
+                            enterDashboard();
+                        }, 1000);
+                    } else {
+                        setTimeout(() => {
+                            toggleLoading('loginBtn', false);
+                            showToast('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+                        }, 1000);
+                    }
+                }
+            });
+
+            // Forgot password form
+            document.getElementById('forgotPasswordForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!isConnected) {
+                    showToast('يتطلب الاتصال بالخادم لاستعادة كلمة المرور', 'error');
+                    return;
+                }
+                
+                const email = document.getElementById('forgotEmail').value.trim();
+                
+                if (!email) {
+                    showToast('يرجى إدخال البريد الإلكتروني', 'error');
+                    return;
+                }
+                
+                toggleLoading('forgotPasswordBtn', true);
+                
+                // Simulate sending reset email
+                setTimeout(() => {
+                    showToast('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني', 'success');
+                    toggleLoading('forgotPasswordBtn', false);
+                    showLoginTab();
+                }, 2000);
+            });
+
+            // Add User Form
+            if (document.getElementById('addUserForm')) {
+                document.getElementById('addUserForm').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const firstName = document.getElementById('newUserFirstName').value.trim();
+                    const lastName = document.getElementById('newUserLastName').value.trim();
+                    const username = document.getElementById('newUserUsername').value.trim();
+                    const email = document.getElementById('newUserEmail').value.trim();
+                    const phone = document.getElementById('newUserPhone').value.trim();
+                    const branch = document.getElementById('newUserBranch').value;
+                    const position = document.getElementById('newUserPosition').value;
+                    const role = document.getElementById('newUserRole').value;
+                    const password = document.getElementById('newUserPassword').value;
+                    
+                    // Validation
+                    if (!firstName || !lastName || !username || !email || !phone || !branch || !position || !role || !password) {
+                        showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+                        return;
+                    }
+                    
+                    if (password.length < 6) {
+                        showToast('كلمة المرور يجب أن تحتوي على 6 أحرف على الأقل', 'error');
+                        return;
+                    }
+                    
+                    toggleLoading('addUserBtn', true);
+                    
+                    const newUser = {
+                        id: registeredUsers.length + 1,
+                        firstName: firstName,
+                        lastName: lastName,
+                        username: username,
+                        email: email,
+                        phone: phone,
+                        branch: branch,
+                        position: position,
+                        role: role,
+                        password: password,
+                        status: 'active',
+                        joinTime: new Date()
+                    };
+                    
+                    if (isConnected && socket) {
+                        socket.emit('adminAddUser', {
+                            ...newUser,
+                            adminId: currentUser.id
+                        });
+                    } else {
+                        // Add locally in offline mode
+                        registeredUsers.push(newUser);
+                        displayAdminUsers();
+                        addActivity('إضافة مستخدم جديد', `تم إضافة ${firstName} ${lastName}`);
+                    }
+                    
+                    // Clear form after submission
+                    this.reset();
+                    
+                    setTimeout(() => {
+                        toggleLoading('addUserBtn', false);
+                        showToast('تم إضافة المستخدم بنجاح', 'success');
+                    }, 1500);
                 });
             }
-            
-            localStorage.setItem('onlineUsers', JSON.stringify(onlineUsers));
-            updateOnlineUsersDisplay();
-        }
 
-        // NEW: Update online users display
-        function updateOnlineUsersDisplay() {
-            document.getElementById('onlineCount').textContent = onlineUsers.length;
-            document.getElementById('dashActiveUsers').textContent = onlineUsers.length;
-            document.getElementById('collaboratorsCount').innerHTML = `(${onlineUsers.length} متعاون)`;
+            // Initialize everything
+            updateCurrentDate();
+            initializeSocket();
             
-            // Update collaborators list in sidebar
-            const collaboratorsList = document.getElementById('collaboratorsList');
-            collaboratorsList.innerHTML = '';
+            // Auto-calculate order total when quantity changes
+            if (document.getElementById('orderQuantity')) {
+                document.getElementById('orderQuantity').addEventListener('input', calculateOrderTotal);
+                document.getElementById('orderProduct').addEventListener('change', calculateOrderTotal);
+            }
+
+            // Set default dates for reports and invoices
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
             
-            onlineUsers.slice(0, 5).forEach(user => { // Show max 5 users
-                const userInitial = user.username.charAt(0).toUpperCase();
-                const userDiv = document.createElement('div');
-                userDiv.className = 'user-avatar';
-                userDiv.title = `${user.username} - ${getBranchName(user.branch)}`;
-                userDiv.textContent = userInitial;
-                collaboratorsList.appendChild(userDiv);
+            const elements = [
+                'invoiceDateFrom', 'invoiceDateTo',
+                'reportDateFrom', 'reportDateTo'
+            ];
+            
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    if (id.includes('From')) {
+                        element.value = thirtyDaysAgo.toISOString().split('T')[0];
+                    } else {
+                        element.value = today.toISOString().split('T')[0];
+                    }
+                }
             });
             
-            // Update users section
-            displayUsers();
+            // Show login screen initially
+            document.getElementById('loginScreen').classList.remove('hidden');
+            
+            // Enable buttons (they'll work in offline mode too)
+            enableLoginButtons();
+        });
+
+        // Enter dashboard after authentication
+        function enterDashboard() {
+            // Hide login screen and show dashboard
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            
+            // Update user info display
+            const fullName = currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : '');
+            document.getElementById('userInfo').innerHTML = `
+                <div class="online-indicator"></div>
+                <span>${fullName} - ${getBranchName(currentUser.branch)}</span>
+            `;
+            
+            // Update user role badge
+            const roleInfo = userRoles[currentUser.role];
+            document.getElementById('userRole').innerHTML = `
+                <span class="role-badge ${roleInfo.badge}">${roleInfo.name}</span>
+            `;
+            
+            // Apply permissions
+            applyUserPermissions();
+            
+            // Join the server as authenticated user (if online)
+            if (socket && isConnected) {
+                socket.emit('userJoin', currentUser);
+            }
+            
+            // Show default section
+            showSection('dashboard', null);
+            
+            const modeText = useOfflineMode ? ' (وضع محلي)' : '';
+            showToast(`مرحباً ${fullName}! تم دخولك للنظام بنجاح${modeText}`, 'success');
+        }
+
+        // Apply user permissions to UI
+        function applyUserPermissions() {
+            const userPermissions = userRoles[currentUser.role].permissions;
+            
+            // Show/hide navigation buttons based on permissions
+            document.querySelectorAll('[data-permission]').forEach(element => {
+                const requiredPermission = element.dataset.permission;
+                if (userPermissions.includes(requiredPermission)) {
+                    element.classList.remove('hidden');
+                    element.classList.remove('restricted-content');
+                } else {
+                    element.classList.add('restricted-content');
+                }
+            });
+            
+            // Show admin section if user is admin
+            if (currentUser.role === 'admin') {
+                document.getElementById('adminSection').classList.remove('hidden');
+            } else {
+                document.getElementById('adminSection').classList.add('hidden');
+            }
+        }
+
+        // User settings functions
+        function showUserSettings() {
+            document.getElementById('userSettingsModal').classList.remove('hidden');
+            
+            // Populate current user data
+            document.getElementById('settingsFullName').value = (currentUser.firstName || '') + (currentUser.lastName ? ' ' + currentUser.lastName : '');
+            document.getElementById('settingsEmail').value = currentUser.email || '';
+            document.getElementById('settingsPhone').value = currentUser.phone || '';
+        }
+
+        function closeUserSettings() {
+            document.getElementById('userSettingsModal').classList.add('hidden');
+        }
+
+        // User settings form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('userSettingsForm')) {
+                document.getElementById('userSettingsForm').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const fullName = document.getElementById('settingsFullName').value.trim();
+                    const email = document.getElementById('settingsEmail').value.trim();
+                    const phone = document.getElementById('settingsPhone').value.trim();
+                    const currentPassword = document.getElementById('currentPassword').value;
+                    const newPassword = document.getElementById('newPassword').value;
+                    const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+                    
+                    // Validation
+                    if (newPassword && newPassword !== confirmNewPassword) {
+                        showToast('كلمات المرور الجديدة غير متطابقة', 'error');
+                        return;
+                    }
+                    
+                    if (newPassword && newPassword.length < 6) {
+                        showToast('كلمة المرور الجديدة قصيرة جداً', 'error');
+                        return;
+                    }
+                    
+                    toggleLoading('saveSettingsBtn', true);
+                    
+                    // Update current user object
+                    const nameParts = fullName.split(' ');
+                    currentUser.firstName = nameParts[0] || '';
+                    currentUser.lastName = nameParts.slice(1).join(' ') || '';
+                    currentUser.email = email;
+                    currentUser.phone = phone;
+                    
+                    // Emit update to server (if online)
+                    if (isConnected && socket) {
+                        socket.emit('updateUserSettings', {
+                            userId: currentUser.id,
+                            firstName: currentUser.firstName,
+                            lastName: currentUser.lastName,
+                            email: email,
+                            phone: phone,
+                            currentPassword: currentPassword,
+                            newPassword: newPassword
+                        });
+                    }
+                    
+                    // Update UI
+                    const fullNameDisplay = currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : '');
+                    document.getElementById('userInfo').innerHTML = `
+                        <div class="online-indicator"></div>
+                        <span>${fullNameDisplay} - ${getBranchName(currentUser.branch)}</span>
+                    `;
+                    
+                    addActivity('تحديث إعدادات الحساب', 'تم تحديث البيانات الشخصية');
+                    
+                    setTimeout(() => {
+                        toggleLoading('saveSettingsBtn', false);
+                        closeUserSettings();
+                        showToast('تم حفظ الإعدادات بنجاح', 'success');
+                    }, 1000);
+                });
+            }
+        });
+
+        // Logout function
+        function logout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                // Emit logout to server (if online)
+                if (socket && isConnected) {
+                    socket.emit('userLogout', currentUser.id);
+                }
+                
+                // Reset user data
+                currentUser = {
+                    id: null,
+                    username: null,
+                    email: null,
+                    firstName: null,
+                    lastName: null,
+                    phone: null,
+                    branch: null,
+                    position: null,
+                    role: 'employee',
+                    status: 'active',
+                    loginTime: null,
+                    isAuthenticated: false
+                };
+                
+                // Clear current order
+                currentOrder = [];
+                onlineUsers = [];
+                
+                // Show login screen
+                document.getElementById('dashboard').classList.add('hidden');
+                document.getElementById('loginScreen').classList.remove('hidden');
+                
+                // Clear form fields
+                document.getElementById('loginForm').reset();
+                document.getElementById('forgotPasswordForm').reset();
+                
+                showLoginTab();
+                showToast('تم تسجيل الخروج بنجاح', 'info');
+            }
+        }
+
+        // Admin functions
+        function displayAdminUsers() {
+            if (currentUser.role !== 'admin') return;
+            
+            const activeUsersDiv = document.getElementById('activeUsers');
+            
+            if (!activeUsersDiv) return;
+            
+            // Clear container
+            activeUsersDiv.innerHTML = '';
+            
+            const activeUsers = registeredUsers.filter(user => user.status === 'active');
+            
+            // Display active users
+            if (activeUsers.length === 0) {
+                activeUsersDiv.innerHTML = '<p class="text-gray-500 text-sm">لا يوجد مستخدمون نشطون</p>';
+            } else {
+                activeUsers.slice(0, 10).forEach(user => {
+                    const roleInfo = userRoles[user.role] || userRoles.employee;
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'bg-green-100 p-3 rounded-lg flex justify-between items-center';
+                    userDiv.innerHTML = `
+                        <div>
+                            <p class="font-medium">${user.firstName} ${user.lastName}</p>
+                            <p class="text-sm text-gray-600">${user.username} - ${getBranchName(user.branch)}</p>
+                            <span class="role-badge ${roleInfo.badge} text-xs">${roleInfo.name}</span>
+                        </div>
+                        <div class="space-x-2">
+                            <button onclick="changeUserRole('${user.id}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                تغيير الدور
+                            </button>
+                            <button onclick="suspendUser('${user.id}')" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm">
+                                تعليق
+                            </button>
+                            <button onclick="deleteUser('${user.id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                                حذف
+                            </button>
+                        </div>
+                    `;
+                    activeUsersDiv.appendChild(userDiv);
+                });
+            }
+        }
+
+        function changeUserRole(userId) {
+            const newRole = prompt('اختر الدور الجديد:\n- employee (موظف)\n- admin (مدير)', 'employee');
+            
+            if (newRole && (newRole === 'employee' || newRole === 'admin')) {
+                if (isConnected && socket) {
+                    socket.emit('changeUserRole', { 
+                        userId: userId, 
+                        newRole: newRole, 
+                        adminId: currentUser.id 
+                    });
+                } else {
+                    // Update locally in offline mode
+                    const userIndex = registeredUsers.findIndex(u => u.id == userId);
+                    if (userIndex >= 0) {
+                        registeredUsers[userIndex].role = newRole;
+                        displayAdminUsers();
+                        addActivity('تغيير دور مستخدم', `تم تغيير دور المستخدم إلى ${newRole}`);
+                    }
+                }
+                showToast('تم تغيير دور المستخدم', 'success');
+            }
+        }
+
+        function suspendUser(userId) {
+            if (confirm('هل أنت متأكد من تعليق هذا المستخدم؟')) {
+                if (isConnected && socket) {
+                    socket.emit('suspendUser', { userId: userId, adminId: currentUser.id });
+                } else {
+                    // Update locally in offline mode
+                    const userIndex = registeredUsers.findIndex(u => u.id == userId);
+                    if (userIndex >= 0) {
+                        registeredUsers[userIndex].status = 'suspended';
+                        displayAdminUsers();
+                        addActivity('تعليق مستخدم', `تم تعليق المستخدم`);
+                    }
+                }
+                showToast('تم تعليق المستخدم', 'info');
+            }
+        }
+
+        function deleteUser(userId) {
+            if (confirm('هل أنت متأكد من حذف هذا المستخدم؟ هذا الإجراء لا يمكن التراجع عنه!')) {
+                if (isConnected && socket) {
+                    socket.emit('deleteUser', { userId: userId, adminId: currentUser.id });
+                } else {
+                    // Update locally in offline mode
+                    registeredUsers = registeredUsers.filter(u => u.id != userId);
+                    displayAdminUsers();
+                    addActivity('حذف مستخدم', `تم حذف المستخدم`);
+                }
+                showToast('تم حذف المستخدم', 'info');
+            }
+        }
+
+        function resetAllData() {
+            if (confirm('تحذير: سيتم حذف جميع البيانات!\nهل أنت متأكد؟')) {
+                if (confirm('تأكيد نهائي: هذا الإجراء لا يمكن التراجع عنه!')) {
+                    if (isConnected && socket) {
+                        socket.emit('adminResetData', { adminId: currentUser.id });
+                    } else {
+                        // Reset locally in offline mode
+                        products = [];
+                        orders = [];
+                        cookingEntries = [];
+                        currentOrder = [];
+                        activityLog = [];
+                        updateAllDisplays();
+                        addActivity('إعادة تعيين البيانات', 'تم حذف جميع البيانات');
+                    }
+                    showToast('تم إعادة تعيين جميع البيانات', 'info');
+                }
+            }
         }
 
         // Utility function for Toast notifications
@@ -1118,7 +2048,7 @@
             }).showToast();
         }
 
-        // NEW: Show sync indicator
+        // Show sync indicator
         function showSyncIndicator(message, type = 'syncing') {
             const indicator = document.getElementById('syncIndicator');
             const messageSpan = document.getElementById('syncMessage');
@@ -1146,49 +2076,56 @@
             }
         }
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            updateCurrentDate();
-            loadInitialData();
+        // Broadcast activity to server
+        function broadcastActivity(action, details = '') {
+            const activity = {
+                user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                branch: currentUser.branch,
+                action: action,
+                details: details
+            };
             
-            // Auto-calculate order total when quantity changes
-            document.getElementById('orderQuantity').addEventListener('input', calculateOrderTotal);
-            document.getElementById('orderProduct').addEventListener('change', calculateOrderTotal);
-
-            // Set default dates for reports and invoices
-            const today = new Date();
-            const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
-            document.getElementById('invoiceDateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
-            document.getElementById('invoiceDateTo').value = today.toISOString().split('T')[0];
-            document.getElementById('reportDateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
-            document.getElementById('reportDateTo').value = today.toISOString().split('T')[0];
-            
-            // Auto-save every 30 seconds
-            setInterval(autoSave, 30000);
-            
-            // Update online users every minute
-            setInterval(updateOnlineUsers, 60000);
-            updateOnlineUsers();
-            
-            // Show welcome screen initially
-            document.getElementById('welcomeScreen').classList.remove('hidden');
-        });
-
-        // NEW: Auto-save function
-        function autoSave() {
-            showSyncIndicator('حفظ تلقائي...', 'syncing');
-            
-            // Simulate save operation
-            setTimeout(() => {
-                localStorage.setItem('products', JSON.stringify(products));
-                localStorage.setItem('orders', JSON.stringify(orders));
-                localStorage.setItem('cookingEntries', JSON.stringify(cookingEntries));
-                localStorage.setItem('activityLog', JSON.stringify(activityLog));
-                
-                showSyncIndicator('تم الحفظ', 'success');
-            }, 500);
+            if (socket && isConnected) {
+                socket.emit('activity', activity);
+            } else {
+                // Add locally in offline mode
+                addActivity(action, details);
+            }
         }
 
+        // Update all displays
+        function updateAllDisplays() {
+            displayProducts();
+            displayOrders();
+            updateOrderProductSelect();
+            updateCookingProductSelect();
+            displayAllCookingEntries();
+            displayDailyCookingSummary();
+            updateReports();
+            updateDashboardStats();
+            updateLiveActivity();
+            updateRecentUpdates();
+            updateOnlineUsersDisplay();
+            
+            if (currentUser.role === 'admin') {
+                displayAdminUsers();
+            }
+        }
+
+        // Update dashboard statistics
+        function updateDashboardStats() {
+            document.getElementById('dashTotalProducts').textContent = products.length;
+            document.getElementById('dashTotalOrders').textContent = orders.length;
+            const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+            document.getElementById('dashTotalSales').textContent = totalSales.toFixed(2);
+            document.getElementById('dashActiveUsers').textContent = onlineUsers.length;
+            
+            // Update total connected users for admin
+            if (document.getElementById('totalConnectedUsers')) {
+                document.getElementById('totalConnectedUsers').textContent = onlineUsers.length;
+            }
+        }
+        
         // Update current date
         function updateCurrentDate() {
             const now = new Date();
@@ -1198,105 +2135,106 @@
                 month: 'long', 
                 day: 'numeric' 
             };
-            document.getElementById('currentDate').textContent = now.toLocaleDateString('ar-SA', options);
-        }
-        
-        // Load initial demo data
-        function loadInitialData() {
-            if (products.length === 0) {
-                products = [
-                    {
-                        id: 1,
-                        name: "ساندويش دجاج",
-                        unit: "piece",
-                        baseAmount: 1,
-                        cost: 15.00,
-                        description: "ساندويش دجاج مشوي مع الخضروات",
-                        addedBy: "النظام",
-                        addedDate: new Date().toISOString()
-                    },
-                    {
-                        id: 2,
-                        name: "سلطة خضراء",
-                        unit: "gram",
-                        baseAmount: 100,
-                        cost: 12.00,
-                        description: "سلطة خضروات طازجة مع صوص خاص",
-                        addedBy: "النظام",
-                        addedDate: new Date().toISOString()
-                    },
-                    {
-                        id: 3,
-                        name: "عصير طبيعي",
-                        unit: "liter",
-                        baseAmount: 1,
-                        cost: 8.00,
-                        description: "عصير فواكه طبيعي مشكل",
-                        addedBy: "النظام",
-                        addedDate: new Date().toISOString()
-                    }
-                ];
-                localStorage.setItem('products', JSON.stringify(products));
-                addActivity('تم تحميل البيانات الأولية', '3 أصناف أساسية');
+            if (document.getElementById('currentDate')) {
+                document.getElementById('currentDate').textContent = now.toLocaleDateString('ar-SA', options);
             }
         }
 
-        // NEW: Enter system functions
-        function enterSystem() {
-            const userName = document.getElementById('userName').value.trim() || 'مستخدم';
-            const userBranch = document.getElementById('userBranch').value || 'guest';
+        // Update live activity display
+        function updateLiveActivity() {
+            const container = document.getElementById('liveActivity');
+            if (!container) return;
             
-            currentUser.username = userName;
-            currentUser.branch = userBranch;
-            currentUser.loginTime = new Date();
+            container.innerHTML = '';
             
-            document.getElementById('userInfo').innerHTML = `
-                <div class="online-indicator"></div>
-                <span>${userName} - ${getBranchName(userBranch)}</span>
-            `;
+            const recentActivities = activityLog.slice(0, 5);
             
-            document.getElementById('welcomeScreen').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
+            if (recentActivities.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد أنشطة حديثة</p>';
+                return;
+            }
             
-            showSection('dashboard', null);
-            updateReports();
-            updateDashboardStats();
-            updateOnlineUsers();
-            
-            addActivity('دخل النظام', `${userName} من ${getBranchName(userBranch)}`);
-            showToast(`مرحباً ${userName}! تم دخولك للنظام بنجاح`, 'success');
+            recentActivities.forEach(activity => {
+                const timeAgo = getTimeAgo(activity.timestamp);
+                const activityDiv = document.createElement('div');
+                activityDiv.className = 'activity-item';
+                activityDiv.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-medium text-gray-800">${activity.action}</p>
+                            <p class="text-sm text-gray-600">${activity.user} - ${getBranchName(activity.branch)}</p>
+                            ${activity.details ? `<p class="text-sm text-gray-500 mt-1">${activity.details}</p>` : ''}
+                        </div>
+                        <span class="text-xs text-gray-500">${timeAgo}</span>
+                    </div>
+                `;
+                container.appendChild(activityDiv);
+            });
         }
 
-        function enterAsGuest() {
-            currentUser.username = 'ضيف';
-            currentUser.branch = 'guest';
-            currentUser.loginTime = new Date();
+        // Update recent updates display
+        function updateRecentUpdates() {
+            const container = document.getElementById('recentUpdates');
+            if (!container) return;
             
-            document.getElementById('userInfo').innerHTML = `
-                <div class="online-indicator"></div>
-                <span>ضيف - زائر</span>
-            `;
+            container.innerHTML = '';
             
-            document.getElementById('welcomeScreen').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
+            const updates = [
+                { type: 'products', count: products.length, label: 'الأصناف' },
+                { type: 'orders', count: orders.length, label: 'الطلبات' },
+                { type: 'cooking', count: cookingEntries.length, label: 'إدخالات الطبخ' }
+            ];
             
-            showSection('dashboard', null);
-            updateReports();
-            updateDashboardStats();
-            updateOnlineUsers();
-            
-            addActivity('دخل النظام', 'دخول كضيف');
-            showToast('مرحباً! تم دخولك كضيف', 'info');
+            updates.forEach(update => {
+                const updateDiv = document.createElement('div');
+                updateDiv.className = 'activity-item';
+                updateDiv.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-medium text-gray-800">${update.label}</p>
+                            <p class="text-sm text-gray-600">العدد الحالي: ${update.count}</p>
+                        </div>
+                        <i class="fas fa-chart-bar text-gray-400"></i>
+                    </div>
+                `;
+                container.appendChild(updateDiv);
+            });
         }
 
-        // NEW: Change user function
-        function changeUser() {
-            document.getElementById('dashboard').classList.add('hidden');
-            document.getElementById('welcomeScreen').classList.remove('hidden');
+        // Get time ago string
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const time = new Date(timestamp);
+            const diffInSeconds = Math.floor((now - time) / 1000);
             
-            // Pre-fill current user data
-            document.getElementById('userName').value = currentUser.username === 'ضيف' ? '' : currentUser.username;
-            document.getElementById('userBranch').value = currentUser.branch;
+            if (diffInSeconds < 60) return 'الآن';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} دقيقة`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ساعة`;
+            return `${Math.floor(diffInSeconds / 86400)} يوم`;
+        }
+
+        // Update online users display
+        function updateOnlineUsersDisplay() {
+            document.getElementById('onlineCount').textContent = onlineUsers.length;
+            document.getElementById('dashActiveUsers').textContent = onlineUsers.length;
+            document.getElementById('collaboratorsCount').innerHTML = `(${onlineUsers.length} متعاون)`;
+            
+            // Update collaborators list in sidebar
+            const collaboratorsList = document.getElementById('collaboratorsList');
+            collaboratorsList.innerHTML = '';
+            
+            onlineUsers.slice(0, 5).forEach(user => {
+                const userInitial = (user.firstName || user.username || 'U').charAt(0).toUpperCase();
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-avatar';
+                const userName = user.firstName ? user.firstName + (user.lastName ? ' ' + user.lastName : '') : user.username;
+                userDiv.title = `${userName} - ${getBranchName(user.branch)}`;
+                userDiv.textContent = userInitial;
+                collaboratorsList.appendChild(userDiv);
+            });
+            
+            // Update users section
+            displayUsers();
         }
 
         // Get branch name in Arabic
@@ -1307,34 +2245,20 @@
                 'branch2': 'فرع أبحر',
                 'branch3': 'فرع المحمدية',
                 'branch4': 'التجارة الإلكترونية',
-                'branch5': 'المطبخ المركزي',
-                'guest': 'ضيف/زائر'
+                'branch5': 'المطبخ المركزي'
             };
             return branches[branchCode] || branchCode;
-        }
-
-        // Get position name in Arabic (kept for compatibility)
-        function getPositionName(positionCode) {
-            const positions = {
-                'manager': 'مدير',
-                'employee': 'موظف',
-                'admin': 'مسؤول نظام',
-                'guest': 'ضيف'
-            };
-            return positions[positionCode] || positionCode;
-        }
-
-        // NEW: Update dashboard statistics
-        function updateDashboardStats() {
-            document.getElementById('dashTotalProducts').textContent = products.length;
-            document.getElementById('dashTotalOrders').textContent = orders.length;
-            const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
-            document.getElementById('dashTotalSales').textContent = totalSales.toFixed(2);
-            document.getElementById('dashActiveUsers').textContent = onlineUsers.length;
         }
         
         // Show section
         function showSection(sectionName, event) {
+            // Check permissions
+            const userPermissions = userRoles[currentUser.role].permissions;
+            if (!userPermissions.includes(sectionName) && sectionName !== 'dashboard') {
+                showToast('لا تملك صلاحية للوصول لهذا القسم', 'error');
+                return;
+            }
+            
             // Hide all sections
             document.querySelectorAll('.section').forEach(section => {
                 section.classList.add('hidden');
@@ -1351,7 +2275,8 @@
                 'invoices': 'الفواتير',
                 'reports': 'التقارير',
                 'users': 'المتعاونون',
-                'cookingQuantities': 'كميات الطبخ'
+                'cookingQuantities': 'كميات الطبخ',
+                'admin': 'إدارة النظام'
             };
             document.getElementById('pageTitle').textContent = titles[sectionName];
             
@@ -1388,86 +2313,96 @@
                 updateCookingProductSelect();
                 displayAllCookingEntries();
                 displayDailyCookingSummary();
-                document.getElementById('cookingDate').valueAsDate = new Date();
-                document.getElementById('summaryDateFilter').valueAsDate = new Date();
+                const cookingDateInput = document.getElementById('cookingDate');
+                const summaryDateInput = document.getElementById('summaryDateFilter');
+                if (cookingDateInput) cookingDateInput.valueAsDate = new Date();
+                if (summaryDateInput) summaryDateInput.valueAsDate = new Date();
+            } else if (sectionName === 'admin') {
+                displayAdminUsers();
             }
         }
         
         // Product management
-        document.getElementById('productForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const productId = document.getElementById('productId').value;
-            const productName = document.getElementById('productName').value;
-            const productUnit = document.getElementById('productUnit').value;
-            const productBaseAmount = parseFloat(document.getElementById('productBaseAmount').value);
-            const productCost = parseFloat(document.getElementById('productCost').value);
-            const productDescription = document.getElementById('productDescription').value;
-            
-            if (!productName || isNaN(productBaseAmount) || isNaN(productCost) || productBaseAmount <= 0 || productCost <= 0) {
-                showToast('يرجى ملء جميع حقول الصنف بشكل صحيح', 'error');
-                return;
-            }
-
-            toggleLoading('saveProductBtn', true);
-            showSyncIndicator('حفظ الصنف...', 'syncing');
-            await new Promise(resolve => setTimeout(resolve, 500));
-        
-            if (productId) { // Editing existing product
-                const productIndex = products.findIndex(p => p.id == productId);
-                if (productIndex !== -1) {
-                    const oldProduct = {...products[productIndex]};
-                    products[productIndex] = {
-                        ...products[productIndex],
-                        name: productName,
-                        unit: productUnit,
-                        baseAmount: productBaseAmount,
-                        cost: productCost,
-                        description: productDescription,
-                        lastModified: new Date().toISOString(),
-                        modifiedBy: currentUser.username
-                    };
-                    addActivity('تحديث صنف', `تم تحديث "${productName}"`);
-                    showToast('تم تحديث الصنف بنجاح', 'success');
+        if (document.getElementById('productForm')) {
+            document.getElementById('productForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const productId = document.getElementById('productId').value;
+                const productName = document.getElementById('productName').value.trim();
+                const productUnit = document.getElementById('productUnit').value;
+                const productBaseAmount = parseFloat(document.getElementById('productBaseAmount').value);
+                const productCost = parseFloat(document.getElementById('productCost').value);
+                const productDescription = document.getElementById('productDescription').value.trim();
+                
+                if (!productName || isNaN(productBaseAmount) || isNaN(productCost) || productBaseAmount <= 0 || productCost <= 0) {
+                    showToast('يرجى ملء جميع حقول الصنف بشكل صحيح', 'error');
+                    return;
                 }
-            } else { // Adding new product
-                const product = {
-                    id: Date.now(),
+
+                toggleLoading('saveProductBtn', true);
+                showSyncIndicator('حفظ الصنف...', 'syncing');
+            
+                const productData = {
+                    id: productId ? parseInt(productId) : Date.now(),
                     name: productName,
                     unit: productUnit,
                     baseAmount: productBaseAmount,
                     cost: productCost,
                     description: productDescription,
-                    addedBy: currentUser.username,
+                    addedBy: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                    branch: currentUser.branch,
                     addedDate: new Date().toISOString()
                 };
-                products.push(product);
-                addActivity('إضافة صنف', `تم إضافة "${productName}"`);
-                showToast('تم إضافة الصنف بنجاح', 'success');
-            }
-            
-            localStorage.setItem('products', JSON.stringify(products));
-            showSyncIndicator('تم حفظ الصنف', 'success');
-            
-            this.reset();
-            document.getElementById('productBaseAmount').value = '100';
-            document.getElementById('productId').value = '';
-            toggleLoading('saveProductBtn', false, '<i class="fas fa-save ml-2"></i> حفظ الصنف');
-            document.getElementById('cancelEditBtn').classList.add('hidden');
-            
-            displayProducts();
-            updateOrderProductSelect();
-            updateReports();
-            updateCookingProductSelect();
-            updateDashboardStats();
-        });
+                
+                if (productId) { // Editing existing product
+                    if (isConnected && socket) {
+                        socket.emit('updateProduct', productData);
+                    } else {
+                        // Update locally
+                        const index = products.findIndex(p => p.id == productId);
+                        if (index >= 0) {
+                            products[index] = productData;
+                        }
+                        displayProducts();
+                        updateOrderProductSelect();
+                        updateCookingProductSelect();
+                        broadcastActivity('تحديث صنف', `تم تحديث ${productName}`);
+                    }
+                    showToast('تم تحديث الصنف بنجاح', 'success');
+                } else { // Adding new product
+                    if (isConnected && socket) {
+                        socket.emit('addProduct', productData);
+                    } else {
+                        // Add locally
+                        products.push(productData);
+                        displayProducts();
+                        updateOrderProductSelect();
+                        updateCookingProductSelect();
+                        updateDashboardStats();
+                        broadcastActivity('إضافة صنف جديد', `تم إضافة ${productName}`);
+                    }
+                    showToast('تم إضافة الصنف بنجاح', 'success');
+                }
+                
+                this.reset();
+                document.getElementById('productBaseAmount').value = '100';
+                document.getElementById('productId').value = '';
+                toggleLoading('saveProductBtn', false, '<i class="fas fa-save ml-2"></i> حفظ الصنف');
+                document.getElementById('cancelEditBtn').classList.add('hidden');
+            });
+        }
         
         // Display products
         function displayProducts() {
             const productsList = document.getElementById('productsList');
+            if (!productsList) return;
+            
             productsList.innerHTML = '';
             
-            document.getElementById('productsCount').textContent = `(${products.length} صنف)`;
+            const productsCount = document.getElementById('productsCount');
+            if (productsCount) {
+                productsCount.textContent = `(${products.length} صنف)`;
+            }
             
             if (products.length === 0) {
                 productsList.innerHTML = '<p class="text-gray-500 text-center py-4">لا توجد أصناف مضافة</p>';
@@ -1519,7 +2454,7 @@
         
         // Edit product
         function editProduct(productId) {
-            const product = products.find(p => p.id === productId);
+            const product = products.find(p => p.id == productId);
             if (product) {
                 document.getElementById('productId').value = product.id;
                 document.getElementById('productName').value = product.name;
@@ -1532,7 +2467,6 @@
                 document.getElementById('cancelEditBtn').classList.remove('hidden');
                 
                 document.getElementById('productsSection').scrollIntoView({ behavior: 'smooth' });
-                addActivity('بدء تعديل صنف', `تعديل "${product.name}"`);
             }
         }
 
@@ -1548,16 +2482,23 @@
 
         // Delete product
         function deleteProduct(productId) {
-            const product = products.find(p => p.id === productId);
+            const product = products.find(p => p.id == productId);
             if (product && confirm(`هل أنت متأكد من حذف "${product.name}"؟`)) {
-                products = products.filter(p => p.id !== productId);
-                localStorage.setItem('products', JSON.stringify(products));
-                displayProducts();
-                updateOrderProductSelect();
-                updateReports();
-                updateCookingProductSelect();
-                updateDashboardStats();
-                addActivity('حذف صنف', `تم حذف "${product.name}"`);
+                if (isConnected && socket) {
+                    socket.emit('deleteProduct', {
+                        productId: productId,
+                        user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                        branch: currentUser.branch
+                    });
+                } else {
+                    // Delete locally
+                    products = products.filter(p => p.id != productId);
+                    displayProducts();
+                    updateOrderProductSelect();
+                    updateCookingProductSelect();
+                    updateDashboardStats();
+                    broadcastActivity('حذف صنف', `تم حذف ${product.name}`);
+                }
                 showToast('تم حذف الصنف بنجاح.', 'success');
             }
         }
@@ -1565,6 +2506,8 @@
         // Update order product select
         function updateOrderProductSelect() {
             const select = document.getElementById('orderProduct');
+            if (!select) return;
+            
             select.innerHTML = '<option value="">-- اختر صنف --</option>';
             
             products.forEach(product => {
@@ -1641,6 +2584,8 @@
             const container = document.getElementById('currentOrderItems');
             const grandTotalElement = document.getElementById('orderGrandTotal');
             
+            if (!container || !grandTotalElement) return;
+            
             container.innerHTML = '';
             let grandTotal = 0;
             
@@ -1690,30 +2635,31 @@
             
             toggleLoading('submitOrderBtn', true);
             showSyncIndicator('إرسال الطلب...', 'syncing');
-            await new Promise(resolve => setTimeout(resolve, 500));
 
-            const order = {
+            const orderData = {
                 id: Date.now(),
                 date: new Date().toISOString(),
                 branch: currentUser.branch,
-                user: currentUser.username,
+                user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
                 position: currentUser.position || 'مستخدم',
                 items: [...currentOrder],
                 total: currentOrder.reduce((sum, item) => sum + item.total, 0)
             };
             
-            orders.push(order);
-            localStorage.setItem('orders', JSON.stringify(orders));
-            
-            addActivity('طلب جديد', `طلب بقيمة ${order.total.toFixed(2)} ريال (${order.items.length} عنصر)`);
+            if (isConnected && socket) {
+                socket.emit('addOrder', orderData);
+            } else {
+                // Add locally
+                orders.push(orderData);
+                displayOrders();
+                updateDashboardStats();
+                updateReports();
+                broadcastActivity('إرسال طلب جديد', `طلب بقيمة ${orderData.total.toFixed(2)} ريال`);
+            }
             
             currentOrder = [];
             displayCurrentOrder();
-            displayOrders();
-            updateReports();
-            updateDashboardStats();
             
-            showSyncIndicator('تم إرسال الطلب', 'success');
             showToast('تم تأكيد الطلب بنجاح', 'success');
             toggleLoading('submitOrderBtn', false, '<i class="fas fa-check ml-2"></i> تأكيد الطلب');
         }
@@ -1721,9 +2667,14 @@
         // Display orders
         function displayOrders() {
             const container = document.getElementById('recentOrdersList');
+            if (!container) return;
+            
             container.innerHTML = '';
             
-            document.getElementById('ordersCount').textContent = `(${orders.length} طلب)`;
+            const ordersCount = document.getElementById('ordersCount');
+            if (ordersCount) {
+                ordersCount.textContent = `(${orders.length} طلب)`;
+            }
             
             const sortedOrders = [...orders].sort((a, b) => new Date(b.date) - new Date(a.date));
             
@@ -1732,7 +2683,7 @@
                 return;
             }
             
-            sortedOrders.slice(0, 10).forEach(order => { // Show only last 10 orders
+            sortedOrders.slice(0, 10).forEach(order => {
                 const orderDiv = document.createElement('div');
                 orderDiv.className = 'bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors'; 
                 orderDiv.innerHTML = `
@@ -1764,23 +2715,31 @@
             });
         }
 
-        // NEW: Delete order function
+        // Delete order function
         function deleteOrder(orderId) {
-            const order = orders.find(o => o.id === orderId);
+            const order = orders.find(o => o.id == orderId);
             if (order && confirm(`هل أنت متأكد من حذف الطلب #${orderId}؟`)) {
-                orders = orders.filter(o => o.id !== orderId);
-                localStorage.setItem('orders', JSON.stringify(orders));
-                displayOrders();
-                updateReports();
-                updateDashboardStats();
-                addActivity('حذف طلب', `تم حذف الطلب #${orderId}`);
+                if (isConnected && socket) {
+                    socket.emit('deleteOrder', {
+                        orderId: orderId,
+                        user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                        branch: currentUser.branch
+                    });
+                } else {
+                    // Remove locally
+                    orders = orders.filter(o => o.id != orderId);
+                    displayOrders();
+                    updateReports();
+                    updateDashboardStats();
+                    broadcastActivity('حذف طلب', `تم حذف الطلب #${orderId}`);
+                }
                 showToast('تم حذف الطلب بنجاح', 'success');
             }
         }
 
         // View order details in modal
         function viewOrderDetails(orderId) {
-            const order = orders.find(o => o.id === orderId);
+            const order = orders.find(o => o.id == orderId);
             if (!order) {
                 showToast('الطلب غير موجود.', 'error');
                 return;
@@ -1849,6 +2808,7 @@
         // Display invoice
         function displayInvoice(filteredOrders, selectedBranch) {
             const container = document.getElementById('invoiceDisplay');
+            if (!container) return;
             
             if (filteredOrders.length === 0) {
                 container.innerHTML = '<p class="text-gray-500 text-center py-8">لا توجد طلبات للفترة المحددة</p>';
@@ -1857,6 +2817,7 @@
             
             const totalAmount = filteredOrders.reduce((sum, order) => sum + order.total, 0);
             const branchName = selectedBranch ? getBranchName(selectedBranch) : 'جميع الفروع';
+            const userName = currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : '');
             
             container.innerHTML = `
                 <div class="invoice-header text-center mb-6 pb-6 border-b">
@@ -1865,7 +2826,7 @@
                     <div class="text-gray-600">
                         <p>تاريخ الإصدار: ${new Date().toLocaleDateString('ar-SA')}</p>
                         <p>عدد الطلبات: ${filteredOrders.length}</p>
-                        <p>تم الإنشاء بواسطة: ${currentUser.username}</p>
+                        <p>تم الإنشاء بواسطة: ${userName}</p>
                     </div>
                 </div>
                 
@@ -1913,7 +2874,7 @@
                 <div class="text-center mt-6 pt-6 border-t text-sm text-gray-600">
                     <p>شركة بي سانوس للأغذية الصحية</p>
                     <p>هذه الفاتورة تم إنشاؤها إلكترونياً ولا تحتاج إلى توقيع</p>
-                    <p class="mt-2 text-xs">تم الإنشاء بواسطة نظام بي سانوس العام v2.0</p>
+                    <p class="mt-2 text-xs">تم الإنشاء بواسطة نظام بي سانوس المتصل v2.0</p>
                 </div>
             `;
         }
@@ -1925,8 +2886,13 @@
         
         // Update reports
         function updateReports() {
-            const dateFrom = document.getElementById('reportDateFrom').value;
-            const dateTo = document.getElementById('reportDateTo').value;
+            const dateFromElement = document.getElementById('reportDateFrom');
+            const dateToElement = document.getElementById('reportDateTo');
+            
+            if (!dateFromElement || !dateToElement) return;
+            
+            const dateFrom = dateFromElement.value;
+            const dateTo = dateToElement.value;
 
             let filteredOrders = orders;
 
@@ -1947,9 +2913,14 @@
             }
 
             const totalSales = filteredOrders.reduce((sum, order) => sum + order.total, 0);
-            document.getElementById('totalSales').textContent = totalSales.toFixed(2);
-            document.getElementById('totalOrders').textContent = filteredOrders.length;
-            document.getElementById('totalProducts').textContent = products.length;
+            
+            const totalSalesElement = document.getElementById('totalSales');
+            const totalOrdersElement = document.getElementById('totalOrders');
+            const totalProductsElement = document.getElementById('totalProducts');
+            
+            if (totalSalesElement) totalSalesElement.textContent = totalSales.toFixed(2);
+            if (totalOrdersElement) totalOrdersElement.textContent = filteredOrders.length;
+            if (totalProductsElement) totalProductsElement.textContent = products.length;
             
             updateReportTable(filteredOrders);
         }
@@ -1957,6 +2928,8 @@
         // Update report table
         function updateReportTable(filteredOrders) {
             const tbody = document.getElementById('reportTableBody');
+            if (!tbody) return;
+            
             tbody.innerHTML = '';
             
             const productStats = {};
@@ -2013,30 +2986,35 @@
         // Display users (now shows online collaborators)
         function displayUsers() {
             const usersList = document.getElementById('usersList');
+            if (!usersList) return;
+            
             usersList.innerHTML = '';
 
             if (onlineUsers.length === 0) {
-                usersList.innerHTML = '<p class="text-gray-500 text-center py-4">لا يوجد متعاونون حالياً</p>';
+                usersList.innerHTML = '<p class="text-gray-500 text-center py-4">لا يوجد متعاونون متصلون حالياً</p>';
                 return;
             }
 
             onlineUsers.forEach(user => {
                 const userDiv = document.createElement('div');
                 userDiv.className = 'bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors';
-                const lastSeen = getTimeAgo(user.lastSeen);
+                const lastSeen = getTimeAgo(user.lastSeen || user.joinTime);
                 const isCurrentUser = user.id === currentUser.id;
+                const userName = user.firstName ? user.firstName + (user.lastName ? ' ' + user.lastName : '') : user.username;
+                const roleInfo = userRoles[user.role] || userRoles.employee;
                 
                 userDiv.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex items-center">
-                            <div class="user-avatar mr-3">${user.username.charAt(0).toUpperCase()}</div>
+                            <div class="user-avatar mr-3">${userName.charAt(0).toUpperCase()}</div>
                             <div>
                                 <h4 class="font-bold text-gray-800">
-                                    ${user.username}
+                                    ${userName}
                                     ${isCurrentUser ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full mr-2">(أنت)</span>' : ''}
                                 </h4>
                                 <p class="text-sm text-gray-600">${getBranchName(user.branch)}</p>
                                 <p class="text-xs text-gray-500">آخر نشاط: ${lastSeen}</p>
+                                <span class="role-badge ${roleInfo.badge} text-xs mt-1">${roleInfo.name}</span>
                             </div>
                         </div>
                         <div class="online-indicator" title="متصل الآن"></div>
@@ -2049,6 +3027,8 @@
         // Update cooking product select dropdown
         function updateCookingProductSelect() {
             const select = document.getElementById('cookingProduct');
+            if (!select) return;
+            
             select.innerHTML = '<option value="">-- اختر صنف --</option>';
 
             products.forEach(product => {
@@ -2060,63 +3040,68 @@
         }
 
         // Add daily cooking entry
-        document.getElementById('dailyCookingForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        if (document.getElementById('dailyCookingForm')) {
+            document.getElementById('dailyCookingForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
 
-            const cookingDate = document.getElementById('cookingDate').value;
-            const productId = document.getElementById('cookingProduct').value;
-            const cookedQuantity = parseFloat(document.getElementById('cookedQuantity').value);
-            const distributedQuantity = parseFloat(document.getElementById('distributedQuantity').value);
+                const cookingDate = document.getElementById('cookingDate').value;
+                const productId = document.getElementById('cookingProduct').value;
+                const cookedQuantity = parseFloat(document.getElementById('cookedQuantity').value);
+                const distributedQuantity = parseFloat(document.getElementById('distributedQuantity').value);
 
-            if (!cookingDate || !productId || isNaN(cookedQuantity) || isNaN(distributedQuantity) || cookedQuantity < 0 || distributedQuantity < 0) {
-                showToast('يرجى ملء جميع الحقول بكميات صحيحة وموجبة.', 'error');
-                return;
-            }
+                if (!cookingDate || !productId || isNaN(cookedQuantity) || isNaN(distributedQuantity) || cookedQuantity < 0 || distributedQuantity < 0) {
+                    showToast('يرجى ملء جميع الحقول بكميات صحيحة وموجبة.', 'error');
+                    return;
+                }
 
-            const product = products.find(p => p.id == productId);
-            if (!product) {
-                showToast('الصنف المحدد غير موجود.', 'error');
-                return;
-            }
+                const product = products.find(p => p.id == productId);
+                if (!product) {
+                    showToast('الصنف المحدد غير موجود.', 'error');
+                    return;
+                }
 
-            const remainingQuantity = cookedQuantity - distributedQuantity;
+                const remainingQuantity = cookedQuantity - distributedQuantity;
 
-            toggleLoading('addCookingEntryBtn', true);
-            showSyncIndicator('إضافة إدخال الطبخ...', 'syncing');
-            await new Promise(resolve => setTimeout(resolve, 500));
+                toggleLoading('addCookingEntryBtn', true);
+                showSyncIndicator('إضافة إدخال الطبخ...', 'syncing');
 
-            const entry = {
-                id: Date.now(),
-                date: cookingDate,
-                productId: product.id,
-                productName: product.name,
-                productUnit: product.unit,
-                cookedQuantity: cookedQuantity,
-                distributedQuantity: distributedQuantity,
-                remainingQuantity: remainingQuantity,
-                user: currentUser.username,
-                branch: currentUser.branch,
-                position: currentUser.position || 'مستخدم',
-                addedDate: new Date().toISOString()
-            };
+                const entryData = {
+                    id: Date.now(),
+                    date: cookingDate,
+                    productId: product.id,
+                    productName: product.name,
+                    productUnit: product.unit,
+                    cookedQuantity: cookedQuantity,
+                    distributedQuantity: distributedQuantity,
+                    remainingQuantity: remainingQuantity,
+                    user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                    branch: currentUser.branch,
+                    position: currentUser.position || 'مستخدم',
+                    createdAt: new Date().toISOString()
+                };
 
-            cookingEntries.push(entry);
-            localStorage.setItem('cookingEntries', JSON.stringify(cookingEntries));
+                if (isConnected && socket) {
+                    socket.emit('addCookingEntry', entryData);
+                } else {
+                    // Add locally
+                    cookingEntries.push(entryData);
+                    displayAllCookingEntries();
+                    displayDailyCookingSummary();
+                    broadcastActivity('إضافة إدخال طبخ', `${product.name}: ${cookedQuantity} ${getUnitName(product.unit)}`);
+                }
 
-            addActivity('إدخال طبخ', `${product.name}: طبخ ${cookedQuantity}، توزيع ${distributedQuantity}`);
-            showSyncIndicator('تم حفظ إدخال الطبخ', 'success');
-            showToast('تم إضافة إدخال الطبخ بنجاح.', 'success');
-            this.reset();
-            document.getElementById('cookingDate').valueAsDate = new Date();
-            toggleLoading('addCookingEntryBtn', false, '<i class="fas fa-plus ml-2"></i> إضافة إدخال');
-
-            displayAllCookingEntries();
-            displayDailyCookingSummary();
-        });
+                showToast('تم إضافة إدخال الطبخ بنجاح.', 'success');
+                this.reset();
+                document.getElementById('cookingDate').valueAsDate = new Date();
+                toggleLoading('addCookingEntryBtn', false, '<i class="fas fa-plus ml-2"></i> إضافة إدخال');
+            });
+        }
 
         // Display all cooking entries in table
         function displayAllCookingEntries() {
             const tbody = document.getElementById('allCookingEntriesTableBody');
+            if (!tbody) return;
+            
             tbody.innerHTML = '';
 
             if (cookingEntries.length === 0) {
@@ -2148,13 +3133,21 @@
 
         // Delete cooking entry
         function deleteCookingEntry(entryId) {
-            const entry = cookingEntries.find(e => e.id === entryId);
+            const entry = cookingEntries.find(e => e.id == entryId);
             if (entry && confirm('هل أنت متأكد من حذف هذا الإدخال؟')) {
-                cookingEntries = cookingEntries.filter(e => e.id !== entryId);
-                localStorage.setItem('cookingEntries', JSON.stringify(cookingEntries));
-                displayAllCookingEntries();
-                displayDailyCookingSummary();
-                addActivity('حذف إدخال طبخ', `تم حذف إدخال "${entry.productName}"`);
+                if (isConnected && socket) {
+                    socket.emit('deleteCookingEntry', {
+                        entryId: entryId,
+                        user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                        branch: currentUser.branch
+                    });
+                } else {
+                    // Remove locally
+                    cookingEntries = cookingEntries.filter(e => e.id != entryId);
+                    displayAllCookingEntries();
+                    displayDailyCookingSummary();
+                    broadcastActivity('حذف إدخال طبخ', `تم حذف إدخال ${entry.productName}`);
+                }
                 showToast('تم حذف الإدخال بنجاح.', 'success');
             }
         }
@@ -2162,9 +3155,14 @@
         // Display daily cooking summary
         function displayDailyCookingSummary() {
             const summaryList = document.getElementById('dailyCookingSummaryList');
+            if (!summaryList) return;
+            
             summaryList.innerHTML = '';
 
-            const filterDate = document.getElementById('summaryDateFilter').value;
+            const summaryDateFilter = document.getElementById('summaryDateFilter');
+            if (!summaryDateFilter) return;
+            
+            const filterDate = summaryDateFilter.value;
             if (!filterDate) {
                 summaryList.innerHTML = '<p class="text-gray-500 text-center py-4">اختر تاريخًا لعرض الملخص</p>';
                 return;
@@ -2206,7 +3204,7 @@
             });
         }
 
-        // NEW: Backup and Restore Functions
+        // Backup and Restore Functions
         function showBackupOptions() {
             document.getElementById('backupModal').classList.remove('hidden');
         }
@@ -2219,7 +3217,8 @@
             const backupData = {
                 version: '2.0',
                 timestamp: new Date().toISOString(),
-                createdBy: currentUser.username,
+                createdBy: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                serverConnected: isConnected,
                 data: {
                     products: products,
                     orders: orders,
@@ -2237,7 +3236,6 @@
             link.download = `be-sanus-backup-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             
-            addActivity('تحميل نسخة احتياطية', 'تم تحميل نسخة احتياطية كاملة من البيانات');
             showToast('تم تحميل النسخة الاحتياطية بنجاح', 'success');
             closeBackupModal();
         }
@@ -2259,30 +3257,19 @@
                         throw new Error('Invalid backup file format');
                     }
 
-                    if (confirm('هل أنت متأكد من استرداد البيانات؟ سيتم استبدال جميع البيانات الحالية.')) {
-                        products = backupData.data.products || [];
-                        orders = backupData.data.orders || [];
-                        cookingEntries = backupData.data.cookingEntries || [];
-                        activityLog = backupData.data.activityLog || [];
+                    if (confirm('هل أنت متأكد من استرداد البيانات؟ سيتم إرسالها للخادم واستبدال البيانات الحالية.')) {
+                        if (isConnected && socket) {
+                            // Send data to server for full restore
+                            socket.emit('restoreData', backupData.data);
+                        } else {
+                            // Local restore only if not connected
+                            products = backupData.data.products || [];
+                            orders = backupData.data.orders || [];
+                            cookingEntries = backupData.data.cookingEntries || [];
+                            activityLog = backupData.data.activityLog || [];
+                            updateAllDisplays();
+                        }
 
-                        // Save to localStorage
-                        localStorage.setItem('products', JSON.stringify(products));
-                        localStorage.setItem('orders', JSON.stringify(orders));
-                        localStorage.setItem('cookingEntries', JSON.stringify(cookingEntries));
-                        localStorage.setItem('activityLog', JSON.stringify(activityLog));
-
-                        // Refresh all displays
-                        displayProducts();
-                        displayOrders();
-                        updateOrderProductSelect();
-                        updateCookingProductSelect();
-                        displayAllCookingEntries();
-                        updateReports();
-                        updateDashboardStats();
-                        updateLiveActivity();
-                        updateRecentUpdates();
-
-                        addActivity('استرداد نسخة احتياطية', `تم استرداد البيانات من ${backupData.createdBy || 'مجهول'}`);
                         showToast('تم استرداد البيانات بنجاح', 'success');
                         closeBackupModal();
                     }
@@ -2298,30 +3285,21 @@
 
         function clearAllData() {
             if (confirm('هل أنت متأكد من حذف جميع البيانات؟ هذا الإجراء لا يمكن التراجع عنه!')) {
-                if (confirm('تأكيد نهائي: سيتم حذف جميع الأصناف والطلبات وإدخالات الطبخ والأنشطة!')) {
+                if (confirm('تأكيد نهائي: سيتم حذف جميع البيانات من الخادم أيضاً!')) {
+                    if (isConnected && socket) {
+                        socket.emit('clearAllData', {
+                            user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                            branch: currentUser.branch
+                        });
+                    }
+
                     products = [];
                     orders = [];
                     cookingEntries = [];
                     activityLog = [];
                     currentOrder = [];
 
-                    // Clear localStorage
-                    localStorage.removeItem('products');
-                    localStorage.removeItem('orders');
-                    localStorage.removeItem('cookingEntries');
-                    localStorage.removeItem('activityLog');
-
-                    // Refresh all displays
-                    displayProducts();
-                    displayOrders();
-                    updateOrderProductSelect();
-                    updateCookingProductSelect();
-                    displayAllCookingEntries();
-                    updateReports();
-                    updateDashboardStats();
-                    updateLiveActivity();
-                    updateRecentUpdates();
-
+                    updateAllDisplays();
                     showToast('تم حذف جميع البيانات', 'info');
                     closeBackupModal();
                 }
@@ -2373,7 +3351,6 @@
                 }
                 
                 doc.save(`تقرير_بي_سانوس_${new Date().toISOString().split('T')[0]}.pdf`);
-                addActivity('تحميل تقرير PDF', 'تم تحميل التقرير التفصيلي بصيغة PDF');
                 showToast('تم تحميل التقرير بصيغة PDF بنجاح.', 'success');
             }).catch(error => {
                 console.error('Error generating PDF:', error);
@@ -2432,7 +3409,6 @@
                 }
                 
                 doc.save(`فاتورة_بي_سانوس_${new Date().toISOString().split('T')[0]}.pdf`);
-                addActivity('تحميل فاتورة PDF', 'تم تحميل الفاتورة بصيغة PDF');
                 showToast('تم تحميل الفاتورة بصيغة PDF بنجاح.', 'success');
             }).catch(error => {
                 console.error('Error generating PDF:', error);
@@ -2448,7 +3424,7 @@
 
         // View invoice details in modal
         function viewInvoiceDetails(orderId) {
-            const order = orders.find(o => o.id === orderId);
+            const order = orders.find(o => o.id == orderId);
             if (!order) {
                 showToast('الطلب/الفاتورة غير موجودة.', 'error');
                 return;
@@ -2485,14 +3461,22 @@
 
         // Delete Invoice function
         function deleteInvoice(orderId) {
-            const order = orders.find(o => o.id === orderId);
+            const order = orders.find(o => o.id == orderId);
             if (order && confirm(`هل أنت متأكد من حذف الفاتورة #${orderId}؟`)) {
-                orders = orders.filter(o => o.id !== orderId);
-                localStorage.setItem('orders', JSON.stringify(orders));
-                generateInvoice();
-                updateReports();
-                updateDashboardStats();
-                addActivity('حذف فاتورة', `تم حذف الفاتورة #${orderId}`);
+                if (isConnected && socket) {
+                    socket.emit('deleteOrder', {
+                        orderId: orderId,
+                        user: currentUser.firstName + (currentUser.lastName ? ' ' + currentUser.lastName : ''),
+                        branch: currentUser.branch
+                    });
+                } else {
+                    // Remove locally
+                    orders = orders.filter(o => o.id != orderId);
+                    generateInvoice();
+                    updateReports();
+                    updateDashboardStats();
+                    broadcastActivity('حذف فاتورة', `تم حذف الفاتورة #${orderId}`);
+                }
                 showToast('تم حذف الفاتورة بنجاح.', 'success');
             }
         }
